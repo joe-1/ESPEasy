@@ -15,16 +15,18 @@ void Plugin_003_pulse_interrupt1() ICACHE_RAM_ATTR;
 void Plugin_003_pulse_interrupt2() ICACHE_RAM_ATTR;
 void Plugin_003_pulse_interrupt3() ICACHE_RAM_ATTR;
 void Plugin_003_pulse_interrupt4() ICACHE_RAM_ATTR;
+void Plugin_003_pulsecheck(byte Index) ICACHE_RAM_ATTR;
+
 //this takes 20 bytes of IRAM per handler
 // void Plugin_003_pulse_interrupt5() ICACHE_RAM_ATTR;
 // void Plugin_003_pulse_interrupt6() ICACHE_RAM_ATTR;
 // void Plugin_003_pulse_interrupt7() ICACHE_RAM_ATTR;
 // void Plugin_003_pulse_interrupt8() ICACHE_RAM_ATTR;
 
-unsigned long Plugin_003_pulseCounter[TASKS_MAX];
-unsigned long Plugin_003_pulseTotalCounter[TASKS_MAX];
-unsigned long Plugin_003_pulseTime[TASKS_MAX];
-unsigned long Plugin_003_pulseTimePrevious[TASKS_MAX];
+volatile unsigned long Plugin_003_pulseCounter[TASKS_MAX];
+volatile unsigned long Plugin_003_pulseTotalCounter[TASKS_MAX];
+volatile unsigned long Plugin_003_pulseTime[TASKS_MAX];
+volatile unsigned long Plugin_003_pulseTimePrevious[TASKS_MAX];
 
 boolean Plugin_003(byte function, struct EventStruct *event, String& string)
 {
@@ -110,19 +112,19 @@ boolean Plugin_003(byte function, struct EventStruct *event, String& string)
 
     case PLUGIN_WEBFORM_SHOW_VALUES:
       {
-        string += F("<div class=\"div_l\">");
-        string += ExtraTaskSettings.TaskDeviceValueNames[0];
-        string += F(":</div><div class=\"div_r\">");
-        string += Plugin_003_pulseCounter[event->TaskIndex];
-        string += F("</div><div class=\"div_br\"></div><div class=\"div_l\">");
-        string += ExtraTaskSettings.TaskDeviceValueNames[1];
-        string += F(":</div><div class=\"div_r\">");
-        string += Plugin_003_pulseTotalCounter[event->TaskIndex];
-        string += F("</div><div class=\"div_br\"></div><div class=\"div_l\">");
-        string += ExtraTaskSettings.TaskDeviceValueNames[2];
-        string += F(":</div><div class=\"div_r\">");
-        string += Plugin_003_pulseTime[event->TaskIndex];
-        string += F("</div>");
+        addHtml(F("<div class=\"div_l\">"));
+        addHtml(String(ExtraTaskSettings.TaskDeviceValueNames[0]));
+        addHtml(F(":</div><div class=\"div_r\">"));
+        addHtml(String(Plugin_003_pulseCounter[event->TaskIndex]));
+        addHtml(F("</div><div class=\"div_br\"></div><div class=\"div_l\">"));
+        addHtml(String(ExtraTaskSettings.TaskDeviceValueNames[1]));
+        addHtml(F(":</div><div class=\"div_r\">"));
+        addHtml(String(Plugin_003_pulseTotalCounter[event->TaskIndex]));
+        addHtml(F("</div><div class=\"div_br\"></div><div class=\"div_l\">"));
+        addHtml(String(ExtraTaskSettings.TaskDeviceValueNames[2]));
+        addHtml(F(":</div><div class=\"div_r\">"));
+        addHtml(String(Plugin_003_pulseTime[event->TaskIndex]));
+        addHtml(F("</div>"));
         success = true;
         break;
       }
@@ -187,7 +189,12 @@ boolean Plugin_003(byte function, struct EventStruct *event, String& string)
 \*********************************************************************************************/
 void Plugin_003_pulsecheck(byte Index)
 {
-  const unsigned long PulseTime=timePassedSince(Plugin_003_pulseTimePrevious[Index]);
+  noInterrupts(); // s0170071: avoid nested interrups due to bouncing.
+  
+  //  s0170071: the following gives a glitch if millis() rolls over (every 50 days) and there is a bouncing to be avoided at the exact same time. Very rare.
+  //  Alternatively there is timePassedSince(Plugin_003_pulseTimePrevious[Index]); but this is not in IRAM at this time, so do not use in a ISR!
+  const unsigned long PulseTime=millis() - Plugin_003_pulseTimePrevious[Index]; 
+  
   if(PulseTime > (unsigned long)Settings.TaskDevicePluginConfig[Index][0]) // check with debounce time for this task
     {
       Plugin_003_pulseCounter[Index]++;
@@ -195,6 +202,7 @@ void Plugin_003_pulsecheck(byte Index)
       Plugin_003_pulseTime[Index] = PulseTime;
       Plugin_003_pulseTimePrevious[Index]=millis();
     }
+  interrupts();   // enable interrupts again.
 }
 
 

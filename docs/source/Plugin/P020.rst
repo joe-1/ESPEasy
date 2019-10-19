@@ -19,11 +19,22 @@ GitHub: |P020_github|_
 
 Maintainer: |P020_maintainer|
 
+Used libraries: |P020_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P020_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P020_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P020_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

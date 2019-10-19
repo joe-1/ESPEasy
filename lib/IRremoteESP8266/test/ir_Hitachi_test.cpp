@@ -1,5 +1,6 @@
 // Copyright 2018 David Conran
 
+#include "ir_Hitachi.h"
 #include "IRrecv.h"
 #include "IRrecv_test.h"
 #include "IRremoteESP8266.h"
@@ -21,6 +22,7 @@ TEST(TestSendHitachiAC, SendData) {
   irsend.reset();
   irsend.sendHitachiAC(hitachi_code);
   EXPECT_EQ(
+      "f38000d50"
       "m3300s1700"
       "m400s1250m400s500m400s500m400s500m400s500m400s500m400s500m400s500"
       "m400s500m400s500m400s500m400s500m400s1250m400s500m400s500m400s500"
@@ -67,6 +69,7 @@ TEST(TestSendHitachiAC, SendWithRepeats) {
 
   irsend.sendHitachiAC(hitachi_code, kHitachiAcStateLength, 1);
   EXPECT_EQ(
+      "f38000d50"
       "m3300s1700"
       "m400s1250m400s500m400s500m400s500m400s500m400s500m400s500m400s500"
       "m400s500m400s500m400s500m400s500m400s1250m400s500m400s500m400s500"
@@ -150,6 +153,7 @@ TEST(TestSendHitachiAC, SendUnexpectedSizes) {
   irsend.reset();
   irsend.sendHitachiAC(hitachi_long_code, kHitachiAcStateLength + 1);
   ASSERT_EQ(
+      "f38000d50"
       "m3300s1700"
       "m400s1250m400s500m400s500m400s500m400s500m400s500m400s500m400s500"
       "m400s500m400s500m400s500m400s500m400s1250m400s500m400s500m400s500"
@@ -182,6 +186,161 @@ TEST(TestSendHitachiAC, SendUnexpectedSizes) {
       "m400s1250m400s1250m400s1250m400s1250m400s1250m400s1250m400s1250m400s1250"
       "m400s100000",
       irsend.outputStr());
+}
+
+// Tests for IRHitachiAc class.
+TEST(TestIRHitachiAcClass, SetAndGetPower) {
+  IRHitachiAc ac(0);
+  ac.on();
+  EXPECT_TRUE(ac.getPower());
+  ac.off();
+  EXPECT_FALSE(ac.getPower());
+  ac.setPower(true);
+  EXPECT_TRUE(ac.getPower());
+  ac.setPower(false);
+  EXPECT_FALSE(ac.getPower());
+}
+
+TEST(TestIRHitachiAcClass, SetAndGetSwing) {
+  IRHitachiAc ac(0);
+  ac.setSwingVertical(true);
+  ac.setSwingHorizontal(true);
+  EXPECT_TRUE(ac.getSwingVertical());
+  EXPECT_TRUE(ac.getSwingHorizontal());
+  ac.setSwingVertical(false);
+  EXPECT_FALSE(ac.getSwingVertical());
+  EXPECT_TRUE(ac.getSwingHorizontal());
+  ac.setSwingVertical(true);
+  EXPECT_TRUE(ac.getSwingVertical());
+  EXPECT_TRUE(ac.getSwingHorizontal());
+  ac.setSwingHorizontal(false);
+  EXPECT_TRUE(ac.getSwingVertical());
+  EXPECT_FALSE(ac.getSwingHorizontal());
+  ac.setSwingHorizontal(true);
+  EXPECT_TRUE(ac.getSwingHorizontal());
+}
+
+TEST(TestIRHitachiAcClass, SetAndGetTemp) {
+  IRHitachiAc ac(0);
+  ac.setTemp(25);
+  EXPECT_EQ(25, ac.getTemp());
+  ac.setTemp(kHitachiAcMinTemp);
+  EXPECT_EQ(kHitachiAcMinTemp, ac.getTemp());
+  ac.setTemp(kHitachiAcMinTemp - 1);
+  EXPECT_EQ(kHitachiAcMinTemp, ac.getTemp());
+  ac.setTemp(kHitachiAcMaxTemp);
+  EXPECT_EQ(kHitachiAcMaxTemp, ac.getTemp());
+  ac.setTemp(kHitachiAcMaxTemp + 1);
+  EXPECT_EQ(kHitachiAcMaxTemp, ac.getTemp());
+  ac.setTemp(64);
+  EXPECT_EQ(64, ac.getTemp());
+}
+
+TEST(TestIRHitachiAcClass, SetAndGetMode) {
+  IRHitachiAc ac(0);
+  ac.setMode(kHitachiAcCool);
+  ac.setFan(kHitachiAcFanAuto);
+  EXPECT_EQ(kHitachiAcCool, ac.getMode());
+  ac.setTemp(25);
+  EXPECT_EQ(25, ac.getTemp());
+  EXPECT_EQ(kHitachiAcFanAuto, ac.getFan());
+  ac.setMode(kHitachiAcFan);
+  EXPECT_EQ(kHitachiAcFan, ac.getMode());
+  EXPECT_EQ(64, ac.getTemp());
+  EXPECT_NE(kHitachiAcFanAuto, ac.getFan());
+  ac.setMode(kHitachiAcHeat);
+  EXPECT_EQ(25, ac.getTemp());
+  EXPECT_EQ(kHitachiAcHeat, ac.getMode());
+  ac.setMode(kHitachiAcAuto);
+  ac.setFan(kHitachiAcFanAuto);
+  EXPECT_EQ(kHitachiAcAuto, ac.getMode());
+  ac.setMode(kHitachiAcDry);
+  EXPECT_EQ(kHitachiAcDry, ac.getMode());
+  EXPECT_NE(kHitachiAcFanAuto, ac.getFan());
+}
+
+TEST(TestIRHitachiAcClass, SetAndGetFan) {
+  IRHitachiAc ac(0);
+  ac.setMode(kHitachiAcCool);  // All fan options are available in this mode.
+  ac.setFan(kHitachiAcFanAuto);
+  EXPECT_EQ(kHitachiAcFanAuto, ac.getFan());
+  ac.setFan(kHitachiAcFanLow);
+  EXPECT_EQ(kHitachiAcFanLow, ac.getFan());
+  ac.setFan(kHitachiAcFanHigh);
+  EXPECT_EQ(kHitachiAcFanHigh, ac.getFan());
+  ac.setFan(kHitachiAcFanHigh + 1);
+  EXPECT_EQ(kHitachiAcFanHigh, ac.getFan());
+  ac.setFan(0);
+  EXPECT_EQ(kHitachiAcFanAuto, ac.getFan());
+
+  ac.setMode(kHitachiAcFan);  // No auto-fan in Fan mode.
+  EXPECT_EQ(kHitachiAcFanLow, ac.getFan());
+  ac.setFan(kHitachiAcFanAuto);
+  EXPECT_EQ(kHitachiAcFanLow, ac.getFan());
+  ac.setFan(kHitachiAcFanHigh);
+  EXPECT_EQ(kHitachiAcFanHigh, ac.getFan());
+
+  // Only Low and one higher fan settin in Dry mode.
+  ac.setMode(kHitachiAcDry);
+  EXPECT_EQ(kHitachiAcFanLow + 1, ac.getFan());
+  ac.setFan(kHitachiAcFanHigh);
+  EXPECT_EQ(kHitachiAcFanLow + 1, ac.getFan());
+  ac.setFan(kHitachiAcFanLow);
+  EXPECT_EQ(kHitachiAcFanLow, ac.getFan());
+  ac.setFan(kHitachiAcFanAuto);
+  EXPECT_EQ(kHitachiAcFanLow, ac.getFan());
+}
+
+TEST(TestIRHitachiAcClass, HumanReadable) {
+  IRHitachiAc ac(0);
+
+  ac.setMode(kHitachiAcHeat);
+  ac.setTemp(kHitachiAcMaxTemp);
+  ac.on();
+  ac.setFan(kHitachiAcFanHigh);
+  ac.setSwingVertical(true);
+  EXPECT_EQ(
+      "Power: On, Mode: 3 (HEAT), Temp: 32C, Fan: 5 (High), "
+      "Swing (Vertical): On, Swing (Horizontal): Off",
+      ac.toString());
+  ac.setMode(kHitachiAcCool);
+  ac.setTemp(kHitachiAcMinTemp);
+  ac.setFan(kHitachiAcFanLow);
+  ac.setSwingVertical(false);
+  ac.setSwingHorizontal(true);
+  EXPECT_EQ(
+      "Power: On, Mode: 4 (COOL), Temp: 16C, Fan: 2 (Low), "
+      "Swing (Vertical): Off, Swing (Horizontal): On",
+      ac.toString());
+}
+
+TEST(TestIRHitachiAcClass, ChecksumCalculation) {
+  IRHitachiAc ac(0);
+
+  const uint8_t originalstate[kHitachiAcStateLength] = {
+      0x80, 0x08, 0x0C, 0x02, 0xFD, 0x80, 0x7F, 0x88, 0x48, 0x80,
+      0x20, 0x04, 0x00, 0x80, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0xAC};
+  uint8_t examplestate[kHitachiAcStateLength] = {
+      0x80, 0x08, 0x0C, 0x02, 0xFD, 0x80, 0x7F, 0x88, 0x48, 0x80,
+      0x20, 0x04, 0x00, 0x80, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
+      0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0xAC};
+
+  EXPECT_TRUE(IRHitachiAc::validChecksum(examplestate));
+  EXPECT_EQ(0xAC, IRHitachiAc::calcChecksum(examplestate));
+
+  examplestate[kHitachiAcStateLength - 1] =
+      0x12;  // Make the existing checksum invalid
+  EXPECT_FALSE(IRHitachiAc::validChecksum(examplestate));
+  EXPECT_EQ(0xAC, IRHitachiAc::calcChecksum(examplestate));
+  ac.setRaw(examplestate);
+  // Extracting the state from the object should have a correct checksum.
+  EXPECT_TRUE(IRHitachiAc::validChecksum(ac.getRaw()));
+  EXPECT_STATE_EQ(originalstate, ac.getRaw(), kHitachiAcBits);
+
+  examplestate[8] = 0x12;  // Force a different checksum calc.
+  EXPECT_FALSE(IRHitachiAc::validChecksum(examplestate));
+  EXPECT_EQ(0xFF, IRHitachiAc::calcChecksum(examplestate));
 }
 
 // Tests for decodeHitachiAC().
@@ -217,7 +376,7 @@ TEST(TestDecodeHitachiAC, NormalRealExample1) {
       0x20, 0x04, 0x00, 0x80, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
       0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0xAC};
 
-  // Ref: https://github.com/markszabo/IRremoteESP8266/issues/417
+  // Ref: https://github.com/crankyoldgit/IRremoteESP8266/issues/417
   // 'On' '16c' 'auto fan' 'cooling mode'
   uint16_t rawData[451] = {
       3318, 1720, 400, 1276, 400, 432,  398, 434,  398, 434,  400, 432,
@@ -266,6 +425,12 @@ TEST(TestDecodeHitachiAC, NormalRealExample1) {
   EXPECT_EQ(HITACHI_AC, irsend.capture.decode_type);
   ASSERT_EQ(kHitachiAcBits, irsend.capture.bits);
   EXPECT_STATE_EQ(hitachi_code, irsend.capture.state, kHitachiAcBits);
+  IRHitachiAc ac(0);
+  ac.setRaw(irsend.capture.state);
+  EXPECT_EQ(
+      "Power: On, Mode: 4 (COOL), Temp: 16C, Fan: 1 (Auto), "
+      "Swing (Vertical): Off, Swing (Horizontal): Off",
+      ac.toString());
 }
 
 // Decode another 'real' HitachiAC message.
@@ -279,7 +444,7 @@ TEST(TestDecodeHitachiAC, NormalRealExample2) {
       0xC0, 0x02, 0x00, 0xA0, 0x00, 0x00, 0x00, 0x01, 0x00, 0x00,
       0x00, 0x00, 0x00, 0x00, 0x80, 0x00, 0x00, 0xD0};
 
-  // Ref: https://github.com/markszabo/IRremoteESP8266/issues/417
+  // Ref: https://github.com/crankyoldgit/IRremoteESP8266/issues/417
   // 'On' '32c' 'auto fan' 'heating mode'
   uint16_t rawData[451] = {
       3322, 1718, 400, 1278, 398, 432,  402, 430,  400, 430,  402, 430,
@@ -328,6 +493,12 @@ TEST(TestDecodeHitachiAC, NormalRealExample2) {
   EXPECT_EQ(HITACHI_AC, irsend.capture.decode_type);
   ASSERT_EQ(kHitachiAcBits, irsend.capture.bits);
   EXPECT_STATE_EQ(hitachi_code, irsend.capture.state, kHitachiAcBits);
+  IRHitachiAc ac(0);
+  ac.setRaw(irsend.capture.state);
+  EXPECT_EQ(
+      "Power: On, Mode: 3 (HEAT), Temp: 32C, Fan: 5 (High), "
+      "Swing (Vertical): Off, Swing (Horizontal): Off",
+      ac.toString());
 }
 
 // Tests for sendHitachiAC1().
@@ -343,6 +514,7 @@ TEST(TestSendHitachiAC1, SendData) {
   irsend.reset();
   irsend.sendHitachiAC1(hitachi_code);
   EXPECT_EQ(
+      "f38000d50"
       "m3400s3400"
       "m400s1250m400s500m400s1250m400s1250m400s500m400s500m400s1250m400s500"
       "m400s1250m400s500m400s1250m400s500m400s1250m400s1250m400s1250m400s500"
@@ -371,7 +543,7 @@ TEST(TestDecodeHitachiAC1, NormalRealExample) {
                                                   0x61, 0x84, 0x00, 0x00, 0x00,
                                                   0x00, 0x10, 0x98};
 
-  // Ref: https://github.com/markszabo/IRremoteESP8266/issues/453
+  // Ref: https://github.com/crankyoldgit/IRremoteESP8266/issues/453
   uint16_t rawData[211] = {
       3400, 3350, 450, 1250, 450, 400,  400, 1300, 400, 1300, 400, 400,
       450,  400,  400, 1300, 400, 400,  400, 1300, 400, 400,  450, 1250,
@@ -417,6 +589,7 @@ TEST(TestSendHitachiAC2, SendData) {
   irsend.reset();
   irsend.sendHitachiAC2(hitachi_code);
   EXPECT_EQ(
+      "f38000d50"
       "m3300s1700"
       "m400s1250m400s500m400s500m400s500m400s500m400s500m400s500m400s500"
       "m400s500m400s500m400s500m400s500m400s1250m400s500m400s500m400s500"
@@ -512,7 +685,7 @@ TEST(TestDecodeHitachiAC2, NormalRealExample) {
       0x01, 0xFE, 0xC0, 0x3F, 0x80, 0x7F, 0x11, 0xEE, 0x00, 0xFF, 0x00,
       0xFF, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00, 0xFF, 0x00};
 
-  // Ref: https://github.com/markszabo/IRremoteESP8266/issues/417
+  // Ref: https://github.com/crankyoldgit/IRremoteESP8266/issues/417
   uint16_t rawData[851] = {
       // ON - 32c cool (fan auto)
       3432, 1654, 492, 1180, 488, 360,  486, 360,  486, 360,  486, 362,
@@ -594,4 +767,34 @@ TEST(TestDecodeHitachiAC2, NormalRealExample) {
   EXPECT_EQ(HITACHI_AC2, irsend.capture.decode_type);
   ASSERT_EQ(kHitachiAc2Bits, irsend.capture.bits);
   EXPECT_STATE_EQ(hitachi_code, irsend.capture.state, kHitachiAc2Bits);
+}
+
+TEST(TestIRHitachiAcClass, toCommon) {
+  IRHitachiAc ac(0);
+  ac.setPower(true);
+  ac.setMode(kHitachiAcCool);
+  ac.setTemp(20);
+  ac.setFan(kHitachiAcFanHigh);
+  ac.setSwingVertical(true);
+  ac.setSwingHorizontal(true);
+  // Now test it.
+  ASSERT_EQ(decode_type_t::HITACHI_AC, ac.toCommon().protocol);
+  ASSERT_EQ(-1, ac.toCommon().model);
+  ASSERT_TRUE(ac.toCommon().power);
+  ASSERT_TRUE(ac.toCommon().celsius);
+  ASSERT_EQ(20, ac.toCommon().degrees);
+  ASSERT_EQ(stdAc::opmode_t::kCool, ac.toCommon().mode);
+  ASSERT_EQ(stdAc::fanspeed_t::kMax, ac.toCommon().fanspeed);
+  ASSERT_EQ(stdAc::swingv_t::kAuto, ac.toCommon().swingv);
+  ASSERT_EQ(stdAc::swingh_t::kAuto, ac.toCommon().swingh);
+  // Unsupported.
+  ASSERT_FALSE(ac.toCommon().turbo);
+  ASSERT_FALSE(ac.toCommon().clean);
+  ASSERT_FALSE(ac.toCommon().light);
+  ASSERT_FALSE(ac.toCommon().quiet);
+  ASSERT_FALSE(ac.toCommon().econo);
+  ASSERT_FALSE(ac.toCommon().filter);
+  ASSERT_FALSE(ac.toCommon().beep);
+  ASSERT_EQ(-1, ac.toCommon().sleep);
+  ASSERT_EQ(-1, ac.toCommon().clock);
 }

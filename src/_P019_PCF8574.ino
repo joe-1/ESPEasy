@@ -1,4 +1,7 @@
 #ifdef USES_P019
+
+#include "src/DataStructs/PinMode.h"
+
 //#######################################################################################################
 //#################################### Plugin 019: PCF8574 ##############################################
 //#######################################################################################################
@@ -31,7 +34,23 @@ TaskDevicePluginConfigLong settings:
 #define PLUGIN_019
 #define PLUGIN_ID_019         19
 #define PLUGIN_NAME_019       "Switch input - PCF8574"
+<<<<<<< HEAD
 #define PLUGIN_VALUENAME1_019 "Switch"
+=======
+#define PLUGIN_VALUENAME1_019 "State"
+#define PLUGIN_019_DOUBLECLICK_MIN_INTERVAL 1000
+#define PLUGIN_019_DOUBLECLICK_MAX_INTERVAL 3000
+#define PLUGIN_019_LONGPRESS_MIN_INTERVAL 1000
+#define PLUGIN_019_LONGPRESS_MAX_INTERVAL 5000
+#define PLUGIN_019_DC_DISABLED 0
+#define PLUGIN_019_DC_LOW 1
+#define PLUGIN_019_DC_HIGH 2
+#define PLUGIN_019_DC_BOTH 3
+#define PLUGIN_019_LONGPRESS_DISABLED 0
+#define PLUGIN_019_LONGPRESS_LOW 1
+#define PLUGIN_019_LONGPRESS_HIGH 2
+#define PLUGIN_019_LONGPRESS_BOTH 3
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
 
 boolean Plugin_019(byte function, struct EventStruct *event, String& string)
 {
@@ -73,18 +92,58 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
     case PLUGIN_WEBFORM_LOAD:
       {
         //@giig1967g: set current task value for taking actions after changes
-        const uint32_t key = createKey(PLUGIN_ID_019,Settings.TaskDevicePort[event->TaskIndex]);
+        const uint32_t key = createKey(PLUGIN_ID_019,CONFIG_PORT);
         if (existPortStatus(key)) {
           globalMapPortStatus[key].previousTask = event->TaskIndex;
         }
 
+<<<<<<< HEAD
         addSendBootStateForm(event->TaskIndex, 0);
+=======
+        addFormCheckBox(F("Send Boot state"), F("p019_boot"), PCONFIG(0));
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
 
         addAdvancedEventManagementSubHeader();
 
+<<<<<<< HEAD
         addDebounceForm(event->TaskIndex);
         addDoubleClickEventForm(event->TaskIndex);
         addLongPressEventForm(event->TaskIndex);
+=======
+        addFormNumericBox(F("De-bounce (ms)"), F("p019_debounce"), round(PCONFIG_FLOAT(0)), 0, 250);
+
+        //set minimum value for doubleclick MIN max speed
+        if (PCONFIG_FLOAT(1) < PLUGIN_019_DOUBLECLICK_MIN_INTERVAL)
+          PCONFIG_FLOAT(1) = PLUGIN_019_DOUBLECLICK_MIN_INTERVAL;
+
+        byte choiceDC = PCONFIG(4);
+        String buttonDC[4];
+        buttonDC[0] = F("Disabled");
+        buttonDC[1] = F("Active only on LOW (EVENT=3)");
+        buttonDC[2] = F("Active only on HIGH (EVENT=3)");
+        buttonDC[3] = F("Active on LOW & HIGH (EVENT=3)");
+        int buttonDCValues[4] = {PLUGIN_019_DC_DISABLED, PLUGIN_019_DC_LOW, PLUGIN_019_DC_HIGH,PLUGIN_019_DC_BOTH};
+        addFormSelector(F("Doubleclick event"), F("p019_dc"), 4, buttonDC, buttonDCValues, choiceDC);
+
+        addFormNumericBox(F("Doubleclick max. interval (ms)"), F("p019_dcmaxinterval"), round(PCONFIG_FLOAT(1)), PLUGIN_019_DOUBLECLICK_MIN_INTERVAL, PLUGIN_019_DOUBLECLICK_MAX_INTERVAL);
+
+        //set minimum value for longpress MIN max speed
+        if (PCONFIG_FLOAT(2) < PLUGIN_019_LONGPRESS_MIN_INTERVAL)
+          PCONFIG_FLOAT(2) = PLUGIN_019_LONGPRESS_MIN_INTERVAL;
+
+        byte choiceLP = PCONFIG(5);
+        String buttonLP[4];
+        buttonLP[0] = F("Disabled");
+        buttonLP[1] = F("Active only on LOW (EVENT= 10 [NORMAL] or 11 [INVERSED])");
+        buttonLP[2] = F("Active only on HIGH (EVENT= 11 [NORMAL] or 10 [INVERSED])");
+        buttonLP[3] = F("Active on LOW & HIGH (EVENT= 10 or 11)");
+        int buttonLPValues[4] = {PLUGIN_019_LONGPRESS_DISABLED, PLUGIN_019_LONGPRESS_LOW, PLUGIN_019_LONGPRESS_HIGH,PLUGIN_019_LONGPRESS_BOTH};
+        addFormSelector(F("Longpress event"), F("p019_lp"), 4, buttonLP, buttonLPValues, choiceLP);
+
+        addFormNumericBox(F("Longpress min. interval (ms)"), F("p019_lpmininterval"), round(PCONFIG_FLOAT(2)), PLUGIN_019_LONGPRESS_MIN_INTERVAL, PLUGIN_019_LONGPRESS_MAX_INTERVAL);
+
+        addFormCheckBox(F("Use Safe Button (slower)"), F("p019_sb"), round(PCONFIG_FLOAT(3)));
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
 
         success = true;
         break;
@@ -92,12 +151,36 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
 
     case PLUGIN_WEBFORM_SAVE:
       {
+<<<<<<< HEAD
         saveSendBootStateForm(event->TaskIndex, 0);
         saveDebounceForm(event->TaskIndex);
         saveDoubleClickEventForm(event->TaskIndex);
         saveLongPressEventForm(event->TaskIndex);
 
         update_globalMapPortStatus_onSave(event->TaskIndex, PLUGIN_ID_019);
+=======
+        PCONFIG(0) = isFormItemChecked(F("p019_boot"));
+
+        //@giig1967-20181022
+        PCONFIG_FLOAT(0) = getFormItemInt(F("p019_debounce"));
+
+        PCONFIG(4) = getFormItemInt(F("p019_dc"));
+        PCONFIG_FLOAT(1) = getFormItemInt(F("p019_dcmaxinterval"));
+
+        PCONFIG(5) = getFormItemInt(F("p019_lp"));
+        PCONFIG_FLOAT(2) = getFormItemInt(F("p019_lpmininterval"));
+
+        PCONFIG_FLOAT(3) = isFormItemChecked(F("p019_sb"));
+
+        //check if a task has been edited and remove task flag from the previous pin
+        for (std::map<uint32_t,portStatusStruct>::iterator it=globalMapPortStatus.begin(); it!=globalMapPortStatus.end(); ++it) {
+          if (it->second.previousTask == event->TaskIndex && getPluginFromKey(it->first)==PLUGIN_ID_019) {
+            globalMapPortStatus[it->first].previousTask = -1;
+            removeTaskFromPort(it->first);
+            break;
+          }
+        }
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
         success = true;
         break;
       }
@@ -105,16 +188,20 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
     case PLUGIN_INIT:
       {
         //apply INIT only if PIN is in range. Do not start INIT if pin not set in the device page.
-        if (Settings.TaskDevicePort[event->TaskIndex] >= 0)
+        if (CONFIG_PORT >= 0)
         {
           portStatusStruct newStatus;
-          const uint32_t key = createKey(PLUGIN_ID_019,Settings.TaskDevicePort[event->TaskIndex]);
+          const uint32_t key = createKey(PLUGIN_ID_019,CONFIG_PORT);
           //Read current status or create empty if it does not exist
           newStatus = globalMapPortStatus[key];
 
           // read and store current state to prevent switching at boot time
           // "state" could be -1, 0 or 1
+<<<<<<< HEAD
           newStatus.updatePinState(Plugin_019_Read(Settings.TaskDevicePort[event->TaskIndex]));
+=======
+          newStatus.state = Plugin_019_Read(CONFIG_PORT);
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
           newStatus.output = newStatus.state;
           (newStatus.portStateError()) ? newStatus.mode = PIN_MODE_OFFLINE : newStatus.mode = PIN_MODE_INPUT; // @giig1967g: if it is in the device list we assume it's an input pin
           newStatus.task++; // add this GPIO/port as a task
@@ -128,6 +215,7 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
 
           // if boot state must be send, inverse default state
           // this is done to force the trigger in PLUGIN_TEN_PER_SECOND
+<<<<<<< HEAD
           if (hlp_getMustSendBootState(event->TaskIndex, 0))
             newStatus.updatePinState(!newStatus.state);
             // FIXME TD-er: Why not set the output state, like is done in P001?
@@ -147,15 +235,39 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
 
           setDoubleClickMinInterval(event->TaskIndex);
           setLongPressMinInterval(event->TaskIndex);
+=======
+          if (PCONFIG(0))
+            newStatus.state = !newStatus.state;
 
-          //setPinState(PLUGIN_ID_019, Settings.TaskDevicePort[event->TaskIndex], PIN_MODE_INPUT, switchstate[event->TaskIndex]);
+          // @giig1967g-20181022: counter = 0
+          PCONFIG(7)=0;     //doubleclick counter
+          PCONFIG_LONG(3)=0; //safebutton counter
+
+          // @giig1967g-20181022: used to track if LP has fired
+          PCONFIG(6)=false;
+
+          // @giig1967g-20181022: store millis for debounce, doubleclick and long press
+          PCONFIG_LONG(0)=millis(); //debounce timer
+          PCONFIG_LONG(1)=millis(); //doubleclick timer
+          PCONFIG_LONG(2)=millis(); //longpress timer
+
+          // @giig1967g-20181022: set minimum value for doubleclick MIN max speed
+          if (PCONFIG_FLOAT(1) < PLUGIN_019_DOUBLECLICK_MIN_INTERVAL)
+            PCONFIG_FLOAT(1) = PLUGIN_019_DOUBLECLICK_MIN_INTERVAL;
+
+          // @giig1967g-20181022: set minimum value for longpress MIN max speed
+          if (PCONFIG_FLOAT(2) < PLUGIN_019_LONGPRESS_MIN_INTERVAL)
+            PCONFIG_FLOAT(2) = PLUGIN_019_LONGPRESS_MIN_INTERVAL;
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
+
+          //setPinState(PLUGIN_ID_019, CONFIG_PORT, PIN_MODE_INPUT, switchstate[event->TaskIndex]);
           savePortStatus(key,newStatus);
 
         }
         success = true;
         break;
       }
-
+/*
       case PLUGIN_UNCONDITIONAL_POLL:
         {
           // port monitoring, generates an event by rule command 'monitor,pcf,port#'
@@ -163,11 +275,12 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
             if (getPluginFromKey(it->first)==PLUGIN_ID_019 && it->second.mustPollGpioState()) {
               const uint16_t port = getPortFromKey(it->first);
               int8_t state = Plugin_019_Read(port);
-              if (it->second.state != state) {
+              if (it->second.state != state || it->second.forceMonitor) {
                 if (it->second.mode == PIN_MODE_OFFLINE) it->second.mode=PIN_MODE_UNDEFINED; //changed from offline to online
                 if (state == -1) it->second.mode=PIN_MODE_OFFLINE; //changed from online to offline
                 if (!it->second.task) it->second.updatePinState(state); //do not update state if task flag=1 otherwise it will not be picked up by 10xSEC function
                 if (it->second.monitor) {
+                  it->second.forceMonitor=0; //reset flag
                   String eventString = F("PCF#");
                   eventString += port;
                   eventString += '=';
@@ -179,9 +292,34 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
           }
           break;
         }
+*/
+      case PLUGIN_MONITOR:
+        {
+          // port monitoring, generates an event by rule command 'monitor,gpio,port#'
+          const uint32_t key = createKey(PLUGIN_ID_019,event->Par1);
+          const portStatusStruct currentStatus = globalMapPortStatus[key];
+
+        //  if (currentStatus.monitor || currentStatus.command || currentStatus.init) {
+            byte state = Plugin_019_Read(event->Par1);
+            if (currentStatus.state != state || currentStatus.forceMonitor) {
+              if (!currentStatus.task) globalMapPortStatus[key].state = state; //do not update state if task flag=1 otherwise it will not be picked up by 10xSEC function
+              if (currentStatus.monitor) {
+                globalMapPortStatus[key].forceMonitor=0; //reset flag
+                String eventString = F("PCF#");
+                eventString += event->Par1;
+                eventString += '=';
+                eventString += state;
+                rulesProcessing(eventString);
+              }
+            }
+          //}
+
+          break;
+        }
 
     case PLUGIN_TEN_PER_SECOND:
       {
+<<<<<<< HEAD
         const int8_t state = Plugin_019_Read(Settings.TaskDevicePort[event->TaskIndex]);
         const bool gpio_state = state == 1;
         bool needToSendEvent = false;
@@ -189,11 +327,14 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
         byte output_value = gpio_state;
 
 
+=======
+        const int8_t state = Plugin_019_Read(CONFIG_PORT);
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
         /**************************************************************************\
         20181022 - @giig1967g: new doubleclick logic is:
         if there is a 'state' change, check debounce period.
-        Then if doubleclick interval exceeded, reset Settings.TaskDevicePluginConfig[event->TaskIndex][7] to 0
-        Settings.TaskDevicePluginConfig[event->TaskIndex][7] contains the current status for doubleclick:
+        Then if doubleclick interval exceeded, reset PCONFIG(7) to 0
+        PCONFIG(7) contains the current status for doubleclick:
         0: start counting
         1: 1st click
         2: 2nd click
@@ -201,19 +342,25 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
 
         Returned EVENT value is = 3 always for doubleclick
         In rules this can be checked:
-        on Button#Switch=3 do //will fire if doubleclick
+        on Button#State=3 do //will fire if doubleclick
         \**************************************************************************/
+<<<<<<< HEAD
         const uint32_t key = createKey(PLUGIN_ID_019,Settings.TaskDevicePort[event->TaskIndex]);
+=======
+        portStatusStruct currentStatus;
+        const uint32_t key = createKey(PLUGIN_ID_019,CONFIG_PORT);
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
         //WARNING operator [],creates an entry in map if key doesn't exist:
         portStatusStruct currentStatus = globalMapPortStatus[key];
 
         const bool gpio_state_changed = state != currentStatus.state;
 
         //Bug fixed: avoid 10xSEC in case of a non-fully configured device (no port defined yet)
-        if (state != -1 && Settings.TaskDevicePort[event->TaskIndex]>=0) {
+        if (state != -1 && CONFIG_PORT>=0) {
 
           //CASE 1: using SafeButton, so wait 1 more 100ms cycle to acknowledge the status change
           //QUESTION: MAYBE IT'S BETTER TO WAIT 2 CYCLES??
+<<<<<<< HEAD
           if (round(hlp_getUseSafeButton(event->TaskIndex)) && gpio_state_changed && hlp_getSafebuttonCounter(event->TaskIndex) == 0)
           {
             addLog(LOG_LEVEL_DEBUG, F("PCF :SafeButton activated"));
@@ -221,8 +368,21 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
           }
           //CASE 2: not using SafeButton, or already waited 1 more 100ms cycle, so proceed.
           else if (gpio_state_changed)
+=======
+          if (round(PCONFIG_FLOAT(3)) && state != currentStatus.state && PCONFIG_LONG(3)==0)
           {
+            addLog(LOG_LEVEL_DEBUG,F("PCF :SafeButton 1st click."))
+            PCONFIG_LONG(3) = 1;
+          }
+          //CASE 2: not using SafeButton, or already waited 1 more 100ms cycle, so proceed.
+          else if (state != currentStatus.state || currentStatus.forceEvent)
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
+          {
+            //Reset forceEvent
+            currentStatus.forceEvent = 0;
+
             // Reset SafeButton counter
+<<<<<<< HEAD
             hlp_setSafebuttonCounter(event->TaskIndex, 0);
             hlp_resetLongPressTimer(event->TaskIndex);
             if (hlp_debounceTimoutPassed(event->TaskIndex)) //de-bounce check
@@ -233,19 +393,87 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
               if (currentStatus.mode == PIN_MODE_OFFLINE || currentStatus.mode == PIN_MODE_UNDEFINED)
               {
                 currentStatus.mode = PIN_MODE_INPUT; //changed from offline to online
+=======
+            PCONFIG_LONG(3) = 0;
+
+            //@giig1967g20181022: reset timer for long press
+            PCONFIG_LONG(2)=millis();
+            PCONFIG(6) = false;
+
+            const unsigned long debounceTime = timePassedSince(PCONFIG_LONG(0));
+            if (debounceTime >= (unsigned long)lround(PCONFIG_FLOAT(0))) //de-bounce check
+            {
+              const unsigned long deltaDC = timePassedSince(PCONFIG_LONG(1));
+              if ((deltaDC >= (unsigned long)lround(PCONFIG_FLOAT(1))) ||
+                   PCONFIG(7)==3)
+              {
+                //reset timer for doubleclick
+                PCONFIG(7)=0;
+                PCONFIG_LONG(1)=millis();
+              }
+
+//just to simplify the reading of the code
+#define COUNTER PCONFIG(7)
+#define DC PCONFIG(4)
+
+              //check settings for doubleclick according to the settings
+              if ( COUNTER!=0 || ( COUNTER==0 && (DC==3 || (DC==1 && state==0) || (DC==2 && state==1))) )
+                PCONFIG(7)++;
+#undef DC
+#undef COUNTER
+
+              //switchstate[event->TaskIndex] = state;
+              if (currentStatus.mode == PIN_MODE_OFFLINE || currentStatus.mode == PIN_MODE_UNDEFINED) currentStatus.mode = PIN_MODE_INPUT; //changed from offline to online
+              currentStatus.state = state;
+
+              byte output_value;
+              //boolean sendState = switchstate[event->TaskIndex];
+              boolean sendState = currentStatus.state;
+
+              if (Settings.TaskDevicePin1Inversed[event->TaskIndex])
+                sendState = !sendState;
+
+              if (PCONFIG(7)==3 && PCONFIG(4)>0)
+              {
+                output_value = 3; //double click
+              } else {
+                output_value = sendState ? 1 : 0; //single click
+              }
+
+              UserVar[event->BaseVarIndex] = output_value;
+
+              if (loglevelActiveFor(LOG_LEVEL_INFO)) {
+                String log = F("PCF  : Port=");
+                log += CONFIG_PORT;
+                log += F(" State=");
+                log += state;
+                log += output_value==3 ? F(" Doubleclick=") : F(" Output value=");
+                log += output_value;
+                addLog(LOG_LEVEL_INFO, log);
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
               }
               currentStatus.updatePinState(state);
               sendState = currentStatus.getPinState();
               output_value = hlp_getOutputValue_updateSendState(event->TaskIndex, sendState);
               event->sensorType = SENSOR_TYPE_SWITCH;
 
+<<<<<<< HEAD
               hlp_setClicktimeDebounce(event->TaskIndex, millis());
+=======
+              PCONFIG_LONG(0) = millis();
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
             }
             savePortStatus(key, currentStatus);
           }
 
+<<<<<<< HEAD
           //CASE 3: status unchanged. Checking longpress:
           else if (hlp_LongPressEnabled_and_notFired(event->TaskIndex, gpio_state)) {
+=======
+//just to simplify the reading of the code
+#define LP PCONFIG(5)
+#define FIRED PCONFIG(6)
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
 
             /**************************************************************************\
             20181022 - @giig1967g: new longpress logic is:
@@ -257,10 +485,11 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
             So we can trigger longpress for high or low contact
 
             In rules this can be checked:
-            on Button#Switch=10 do //will fire if longpress when state = 0
-            on Button#Switch=11 do //will fire if longpress when state = 1
+            on Button#State=10 do //will fire if longpress when state = 0
+            on Button#State=11 do //will fire if longpress when state = 1
             \**************************************************************************/
             // Reset SafeButton counter
+<<<<<<< HEAD
             hlp_setSafebuttonCounter(event->TaskIndex, 0);
 
             if (hlp_LongPressIntervalReached(event->TaskIndex))
@@ -273,6 +502,58 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
           } else {
             // Reset SafeButton counter
             hlp_setSafebuttonCounter(event->TaskIndex, 0);
+=======
+            PCONFIG_LONG(3) = 0;
+
+            const unsigned long deltaLP = timePassedSince(PCONFIG_LONG(2));
+            if (deltaLP >= (unsigned long)lround(PCONFIG_FLOAT(2)))
+            {
+              byte output_value;
+              PCONFIG(6) = true; //fired = true
+
+              boolean sendState = state;
+              if (Settings.TaskDevicePin1Inversed[event->TaskIndex])
+                sendState = !sendState;
+
+              output_value = sendState ? 1 : 0;
+              output_value = output_value + 10;
+
+              UserVar[event->BaseVarIndex] = output_value;
+              if (loglevelActiveFor(LOG_LEVEL_INFO)) {
+                String log = F("PCF  : LongPress: Port= ");
+                log += CONFIG_PORT;
+                log += F(" State=");
+                log += state ? '1' : '0';
+                log += F(" Output value=");
+                log += output_value;
+                addLog(LOG_LEVEL_INFO, log);
+              }
+              sendData(event);
+
+              //reset Userdata so it displays the correct state value in the web page
+              UserVar[event->BaseVarIndex] = sendState ? 1 : 0;
+            }
+          } else {
+            if (PCONFIG_LONG(3)==1) { //Safe Button detected. Send EVENT value = 4
+              // Reset SafeButton counter
+              PCONFIG_LONG(3) = 0;
+
+               //Create EVENT with value = 4 for SafeButton false positive detection
+              const int tempUserVar = round(UserVar[event->BaseVarIndex]);
+              UserVar[event->BaseVarIndex] = 4;
+              if (loglevelActiveFor(LOG_LEVEL_INFO)) {
+                String log = F("PCF : SafeButton: false positive detected. GPIO= ");
+                log += CONFIG_PIN1;
+                log += F(" State=");
+                log += tempUserVar;
+                addLog(LOG_LEVEL_INFO, log);
+              }
+              sendData(event);
+
+              //reset Userdata so it displays the correct state value in the web page
+              UserVar[event->BaseVarIndex] = tempUserVar;
+            }
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
           }
         } else if (gpio_state_changed && state == -1) {
           //set UserVar and switchState = -1 and send EVENT to notify user
@@ -282,7 +563,7 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
           currentStatus.mode = PIN_MODE_OFFLINE;
           if (loglevelActiveFor(LOG_LEVEL_INFO)) {
             String log = F("PCF  : Port=");
-            log += Settings.TaskDevicePort[event->TaskIndex];
+            log += CONFIG_PORT;
             log += F(" is offline (EVENT= -1)");
             addLog(LOG_LEVEL_INFO, log);
           }
@@ -304,7 +585,7 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
       //giig1967g: Added EXIT function
       case PLUGIN_EXIT:
       {
-        removeTaskFromPort(createKey(PLUGIN_ID_019,Settings.TaskDevicePort[event->TaskIndex]));
+        removeTaskFromPort(createKey(PLUGIN_ID_019,CONFIG_PORT));
         break;
       }
 
@@ -314,7 +595,7 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
         // Instead we just send the last known state stored in Uservar
         if (loglevelActiveFor(LOG_LEVEL_INFO)) {
           String log = F("PCF  : Port= ");
-          log += Settings.TaskDevicePort[event->TaskIndex];
+          log += CONFIG_PORT;
           log += F(" State=");
           log += UserVar[event->BaseVarIndex];
           addLog(LOG_LEVEL_INFO, log);
@@ -363,6 +644,8 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
               tempStatus.mode=PIN_MODE_OFFLINE;
               tempStatus.updatePinState(-1);
               tempStatus.command=1; //set to 1 in order to display the status in the PinStatus page
+              tempStatus.forceEvent=1;
+              if (tempStatus.monitor) tempStatus.forceMonitor=1; //set to 1 in order to force an EVENT in case monitor is requested
               savePortStatus(key,tempStatus);
               log = String(F("PCF  : GPIO ")) + String(event->Par1) + String(F(" is offline (-1). Cannot set value."));
             } else if (event->Par2 == 2) { //INPUT
@@ -371,6 +654,8 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
               tempStatus.mode=PIN_MODE_INPUT;
               tempStatus.updatePinState(currentState);
               tempStatus.command=1; //set to 1 in order to display the status in the PinStatus page
+              tempStatus.forceEvent=1;
+              if (tempStatus.monitor) tempStatus.forceMonitor=1; //set to 1 in order to force an EVENT in case monitor is requested
               savePortStatus(key,tempStatus);
           	  Plugin_019_Write(event->Par1,1);
           	  log = String(F("PCF  : GPIO INPUT ")) + String(event->Par1) + String(F(" Set to 1"));
@@ -379,6 +664,8 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
               tempStatus.mode=PIN_MODE_OUTPUT;
               tempStatus.updatePinState(event->Par2);
               tempStatus.command=1; //set to 1 in order to display the status in the PinStatus page
+              tempStatus.forceEvent=1;
+              if (tempStatus.monitor) tempStatus.forceMonitor=1; //set to 1 in order to force an EVENT in case monitor is requested
               savePortStatus(key,tempStatus);
               Plugin_019_Write(event->Par1, event->Par2);
           	  log = String(F("PCF  : GPIO OUTPUT ")) + String(event->Par1) + String(F(" Set to ")) + String(event->Par2);
@@ -403,6 +690,8 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
               tempStatus.mode=PIN_MODE_OFFLINE;
               tempStatus.updatePinState(-1);
               tempStatus.command=1; //set to 1 in order to display the status in the PinStatus page
+              tempStatus.forceEvent=1;
+              if (tempStatus.monitor) tempStatus.forceMonitor=1; //set to 1 in order to force an EVENT in case monitor is requested
               savePortStatus(key,tempStatus);
               log = String(F("PCF  : GPIO ")) + String(event->Par1) + String(F(" is offline (-1). Cannot set value."));
               needToSave = true;
@@ -410,6 +699,8 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
               tempStatus.updatePinState(!currentState); //toggle current state value
               tempStatus.mode = PIN_MODE_OUTPUT;
               tempStatus.command=1; //set to 1 in order to display the status in the PinStatus page
+              tempStatus.forceEvent=1;
+              if (tempStatus.monitor) tempStatus.forceMonitor=1; //set to 1 in order to force an EVENT in case monitor is requested
               savePortStatus(key,tempStatus);
               Plugin_019_Write(event->Par1, tempStatus.state);
               log = String(F("PCF  : Toggle GPIO ")) + String(event->Par1) + String(F(" Set to ")) + String(tempStatus.state);
@@ -495,6 +786,9 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
             const uint32_t key = createKey(PLUGIN_ID_019,event->Par2); //WARNING: 'monitor' uses Par2 instead of Par1
 
             addMonitorToPort(key);
+            //giig1967g: Comment next line to receive an EVENT just after calling the monitor command
+            globalMapPortStatus[key].state = Plugin_019_Read(event->Par2); //set initial value to avoid an event just after calling the command
+
             log = String(F("PCF  : PORT ")) + String(event->Par2) + String(F(" added to monitor list."));
             addLog(LOG_LEVEL_INFO, log);
             SendStatusOnlyIfNeeded(event->Source, SEARCH_PIN_STATE, key, dummyString, 0);
@@ -504,11 +798,11 @@ boolean Plugin_019(byte function, struct EventStruct *event, String& string)
           {
             success = true;
             const uint32_t key = createKey(PLUGIN_ID_019,event->Par2); //WARNING: 'monitor' uses Par2 instead of Par1
+            SendStatusOnlyIfNeeded(event->Source, SEARCH_PIN_STATE, key, dummyString, 0);
 
             removeMonitorFromPort(key);
             log = String(F("PCF  : PORT ")) + String(event->Par2) + String(F(" removed from monitor list."));
             addLog(LOG_LEVEL_INFO, log);
-            SendStatusOnlyIfNeeded(event->Source, SEARCH_PIN_STATE, key, dummyString, 0);
           }
         }
         break;

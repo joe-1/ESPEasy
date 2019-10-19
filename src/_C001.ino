@@ -8,9 +8,9 @@
 #define CPLUGIN_NAME_001       "Domoticz HTTP"
 
 
-boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
+bool CPlugin_001(byte function, struct EventStruct *event, String& string)
 {
-  boolean success = false;
+  bool success = false;
 
   switch (function)
   {
@@ -79,6 +79,7 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
             case SENSOR_TYPE_TEMP_EMPTY_BARO:
             case SENSOR_TYPE_TEMP_HUM_BARO:
             case SENSOR_TYPE_WIND:
+            case SENSOR_TYPE_STRING:
             default:
               url = F("/json.htm?type=command&param=udevice&idx=");
               url += event->idx;
@@ -105,9 +106,18 @@ boolean CPlugin_001(byte function, struct EventStruct *event, String& string)
         }
         break;
       }
+
+    case CPLUGIN_FLUSH:
+      {
+        process_c001_delay_queue();
+        delay(0);
+        break;
+      }
   }
   return success;
 }
+
+bool do_process_c001_delay_queue(int controller_number, const C001_queue_element& element, ControllerSettingsStruct& ControllerSettings);
 
 bool do_process_c001_delay_queue(int controller_number, const C001_queue_element& element, ControllerSettingsStruct& ControllerSettings) {
   WiFiClient client;
@@ -117,7 +127,9 @@ bool do_process_c001_delay_queue(int controller_number, const C001_queue_element
   // This will send the request to the server
   String request = create_http_request_auth(controller_number, element.controller_idx, ControllerSettings, F("GET"), element.txt);
 
+#ifndef BUILD_NO_DEBUG
   addLog(LOG_LEVEL_DEBUG, element.txt);
+#endif
   return send_via_http(controller_number, client, request, ControllerSettings.MustCheckReply);
 }
 

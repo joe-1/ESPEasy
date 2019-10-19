@@ -3,7 +3,7 @@
 // and initialize the function call pointer into the CNPlugin array
 //********************************************************************************
 
-static const char ADDNPLUGIN_ERROR[] PROGMEM = "System: Error - To much N-Plugins";
+static const char ADDNPLUGIN_ERROR[] PROGMEM = "System: Error - Too many N-Plugins";
 
 
 // Because of compiler-bug (multiline defines gives an error if file ending is CRLF) the define is striped to a single line
@@ -149,8 +149,10 @@ byte NPluginCall(byte Function, struct EventStruct *event)
     // Unconditional calls to all plugins
     case NPLUGIN_PROTOCOL_ADD:
       for (x = 0; x < NPLUGIN_MAX; x++)
-        if (NPlugin_id[x] != 0)
-          NPlugin_ptr[x](Function, event, dummyString);
+        if (NPlugin_id[x] != 0) {
+          String dummy;
+          NPlugin_ptr[x](Function, event, dummy);
+        }
       return true;
       break;
   }

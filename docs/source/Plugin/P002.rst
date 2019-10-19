@@ -19,11 +19,22 @@ GitHub: |P002_github|_
 
 Maintainer: |P002_maintainer|
 
+Used libraries: |P002_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P002_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P002_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P002_events.repl
 
 Change log
 ----------

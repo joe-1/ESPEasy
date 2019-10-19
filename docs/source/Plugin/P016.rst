@@ -19,11 +19,22 @@ GitHub: |P016_github|_
 
 Maintainer: |P016_maintainer|
 
+Used libraries: |P016_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P016_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P016_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P016_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

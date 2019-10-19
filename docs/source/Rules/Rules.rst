@@ -191,200 +191,7 @@ Where the "inequality function" is a simple check:
 Some special cases are these system triggers which is triggered upon
 boot/reboot/time/sleep etc. of the unit:
 
-.. csv-table::
-   :header: "Event", "Example"
-   :widths: 30, 20
-
-   "
-   ``<taskname>#<valuename>``
-   As described already, each task can produced one or more events, one for each measured value. You should not name your devices and value names so that the combination equals to any of the below listed system events!
-   ","
-
-   .. code-block:: html
-
-      on [DHT11Outside#Temperature]>20 do
-       GPIO,2,1
-      endon
-
-   "
-   "
-   ``System#Wake``
-   Triggered after power on.
-   ","
-
-   .. code-block:: html
-
-	   on System#Wake do
-       GPIO,15,1
-	   endon
-
-   "
-   "
-   ``System#Boot``
-   Triggered at boot time.
-   ","
-
-   .. code-block:: html
-
-	   on System#Boot do
-      GPIO,2,1
-      timerSet,1,30
-	   endon
-
-   "
-   "
-   ``System#Sleep``
-   Triggered just before the ESP goes to deep sleep.
-   ","
-
-   .. code-block:: html
-
-	   on System#Sleep do
-	    GPIO,2,0
-	   endon
-
-   "
-   "
-   ``MQTT#Connected``
-   Triggered when the ESP has connected to broker.
-   ","
-
-   .. code-block:: html
-
-	   on MQTT#Connected do
-	    Publish,%sysname%/status,First message!
-	   endon
-
-   "
-   "
-   ``MQTT#Disconnected``
-   Triggered when the ESP has disconnected from the broker.
-   ","
-
-   .. code-block:: html
-
-	   on MQTT#Disconnected do
-	    Reboot
-	   endon
-
-   "
-   "
-   ``MQTTimport#Connected``
-   Triggered when the ESP has connected to broker (the MQTT Import plugin uses a separate connection than the generic one).
-   ","
-
-   .. code-block:: html
-
-	   on MQTTimport#Connected do
-	    Publish,%sysname%/status,MQTT Import is now operational
-	   endon
-
-   "
-   "
-   ``MQTTimport#Disconnected``
-   Triggered when the ESP has disconnected from the broker (the MQTT Import plugin uses a separate connection than the generic one).
-   ","
-
-   .. code-block:: html
-
-	   on MQTTimport#Disconnected do
-	    Reboot
-	   endon
-
-   "
-   "
-   ``WiFi#Connected``
-   Triggered when the ESP has connected to Wi-Fi.
-   ","
-
-   .. code-block:: html
-
-	   on WiFi#Connected do
-	    SendToHTTP,url.com,80,/report.php?hash=123abc456&t=[temp2#out]
-	   endon
-
-   "
-   "
-   ``WiFi#ChangedAccesspoint``
-   Triggered when the ESP has changed to access point, will also trigger first time the unit connects to the Wi-Fi.
-   ","
-
-   .. code-block:: html
-
-	   on WiFi#ChangedAccesspoint do
-	    Publish,%sysname%/status,AP changed
-	   endon
-
-   "
-   "
-   ``Login#Failed``
-   Triggered when (someone) has tried to login to a ESP unit with admin password enabled, but have failed to enter correct password.
-   ","
-
-   .. code-block:: html
-
-	   on Login#Failed do
-	    Publish,%sysname%/warning,Intruder alert!
-	   endon
-
-   "
-   "
-   ``Time#Initialized``
-   Triggered the first time (after boot) NTP is updating the unit.
-   ","
-
-   .. code-block:: html
-
-	   on Time#Initialized do
-	    Publish,%sysname%/Time,%systime%
-	   endon
-
-   "
-   "
-   ``Time#Set``
-   Triggered when the time is set by an update from NTP.
-   ","
-
-   .. code-block:: html
-
-	   on Time#Set do
-	    Publish,%sysname%/Time,%systime%
-	    Publish,%sysname%/NTP,Updated time at: %systime%
-	   endon
-
-   "
-   "
-   ``Rules#Timer=``
-   As described already, triggered when a rules timer ends (setting a timer to 0 will disable the timer).
-   ","
-
-   .. code-block:: html
-
-	   on Rules#Timer=1 do
-	    GPIO,2,1
-	   endon
-
-   "
-   "
-   ``Clock#Time=``
-   Triggered every minute with day and time like: Mon,12:30 or Tue,14:45. You can define triggers on specific days or all days using 'All' for days indicator. You can also use wildcards in the time setting like All,**:00 to run every hour.
-   ","
-
-   .. code-block:: html
-
-	   on Clock#Time=All,12:00 do //will run once a day at noon
-	    GPIO,2,1
-	   endon
-
-	   on Clock#Time=All,**:30 do //will run half past every hour
-	    GPIO,2,1
-	   endon
-
-	   on Clock#Time=All,%sunrise% do //will run at sunrise  (%sunset% is also available)
-	    GPIO,2,1
-	   endon
-
-   "
+.. include:: ../Plugin/P000_events.repl
 
 Test
 ----
@@ -432,6 +239,114 @@ remember to add them after the code and always begin with "//":
   endif //this is another comment
  endon
 
+Referring values
+----------------
+
+Rules and some plugins can use references to other (dynamic) values within ESPeasy.
+
+The syntax for referring other values is: ``[...#...]``
+Sometimes it can be useful to have some extra options, each separated using a '#' like this: ``[...#...#...]``
+
+Reference to a value of a specific task: ``[TaskName#ValueName]``
+
+Referring a value using some pre-defined format: ``[TaskName#ValueName#transformation#justification]``
+
+
+For example, there is a task named "bme280" which has a value named "temperature".
+
+Its value can be referenced like this: ``[bme280#temperature]``.
+This can be used in some plugins like the "OLED Framed" plugin to populate some lines on the display.
+It can also be used in rules. Every occurance of this text will then be replaced by its value.
+
+
+N.B. these references to task values only yield a value when the task is enabled and its value is valid.
+
+
+Special task names
+------------------
+
+You must not use the task names ``Plugin``, ``var`` ``int`` as these have special meaning.
+
+``Plugin`` can be used in a so called ``PLUGIN_REQUEST``, for example: 
+``[Plugin#GPIO#Pinstate#N]`` to get the pin state of a GPIO pin.
+
+``Var`` and ``int`` are used for internal variables. 
+The variables set with the ``Let`` command will be available in rules
+as ``var#N`` or ``int#N`` where ``N`` is 1..16.
+For example: ``Let,10,[var#9]``
+
+N.B. ``int`` and ``var`` use the same variable, only ``int`` does round them to 0 decimals.
+N.B.2  ``int`` is added in build 20190916.
+
+``Clock``, ``Rules`` and ``System`` etc. are not recommended either since they are used in
+event names.
+
+Please observe that task names are case insensitive meaning that VAR, var, and Var etc.
+are all treated the same.
+
+
+Formatting refered values
+-------------------------
+
+When referring another value, some basic formatting can be used.
+
+Referring a value using some pre-defined format: ``[TaskName#ValueName#transformation#justification]``
+
+Transformation
+^^^^^^^^^^^^^^
+
+* Transformations are case sensitive. (``M`` differs from ``m``, capital is more verbose)
+* Transformations can not be used on "Plugin" calls, like ``[Plugin#GPIO#Pinstate#N]``, since these already use multiple occurences of ``#``.
+* Most transformations work on "binary" values (logic values 0 or 1)
+* A "binary" transformation can be "inverted" by adding a leading ``!``.
+* A "binary" value is considered 0 when its string value is "0" or empty, otherwise it is an 1. (float values are rounded)
+* A "binary" value can also be used to detect presence of a string, as it is 0 on an empty string or 1 otherwise.
+
+Binary transformations:
+
+* ``C``: 0 => "CLOSE" 1 => " OPEN"
+* ``H``: 0 => "COLD" 1 => " HOT"
+* ``I``: 0 => "OUT" 1 => " IN"
+* ``M``: 0 => "AUTO" 1 => " MAN"
+* ``m``: 0 => "A" 1 => "M"
+* ``O``: 0 => "OFF" 1 => " ON"
+* ``U``: 0 => "DOWN" 1 => "  UP"
+* ``u``: 0 => "D" 1 => "U"
+* ``V``: value = value without transformations
+* ``X``: 0 => "O" 1 => "X"
+* ``Y``: 0 => " NO" 1 => "YES"
+* ``y``: 0 => "N" 1 => "Y"
+* ``Z``: 0 => "0" 1 => "1"
+
+Floating point transformations:
+
+* ``Dx.y``: Minimal 'x' digits zero filled & 'y' decimal fixed digits. E.g. ``[bme#T#D2.1]``
+* ``Dx``: Minimal 'x' digits zero filled in front of the decimal point, no decimal digits. Same as ``Dx.0``
+* ``D.y``: Same as ``D0.y``
+* ``F``: Floor (round down)
+* ``E``: cEiling (round up)
+
+Justification
+^^^^^^^^^^^^^
+
+* ``Pn``: Prefix Fill with n spaces.
+* ``Sn``: Suffix Fill with n spaces.
+* ``Ln``: Left part of the string, n characters.
+* ``Rn``: Right part of the string, n characters.
+* ``Ux.y``: Substring Ux.y where x=firstChar and y=number of characters.
+
+
+System variables
+----------------
+
+There is a large number of system variables.
+These do not refer to task values, but to typical system variables like system uptime, current time and date, etc.
+
+These can all be seen on the ``<ip-address>/sysvars`` page.
+
+N.B. These values cannot be formatted like the task value references.
+
+
 Best practice
 -------------
 
@@ -448,6 +363,13 @@ the code more readable:
 
  [DeviceName#ValueName]<<value> //These work...
  [DeviceName#ValueName] < <value> //the same...
+
+
+Sometimes there is limited space to use a reference, like in some plugins 
+or when the maximum size of a rule file has been reached.
+
+In such cases it is adviced to use short names for tasks and values.
+For example: ``[bme#T]`` instead of ``[bme280#temperature]`` 
 
 Some working examples
 =====================
@@ -486,6 +408,34 @@ This example for two switches that toggle one device (LED and Relay on GPIO 13 a
   gpio,16,[dummy#var1]
   gpio,13,[dummy#var1]
  endon
+
+Please note that the values stored in a Dummy Value are of type float.
+This does mean you only have about 20 bits of resolution for the value.
+
+Storing large numbers like the unix time (31 bits of resolution needed) do need some tricks to be stored.
+For the Unix time there are now 2 variables included:
+
+- %unixday%
+- %unixday_sec%
+
+Here some example used to store the Unix time in the dummy plugin to keep track of actions.
+The values stored in the Dummy variables will be kept and restored on a crash/reboot as long as the ESP remains powered.
+
+.. code-block:: html
+
+ if [DT#YMD]=0 and %unixday%>0
+  taskvalueset,7,1,%unixday%-1
+ endif
+ if %unixday%>0
+  let,5,%unixday%-[DT#YMD]
+  let,4,%v5%*86400-[DT#HMS]+%unixday_sec%
+ else
+  let,4,0
+ endif
+ if %v4%>[Config#MinWateringDelay] 
+  event,Irrigate
+ endif
+
 
 
 Event value (%eventvalue%)
@@ -535,14 +485,82 @@ You could then use the command "ToggleGPIO" with dynamic GPIO numbers and state.
 
  http://<espeasyip>/control?cmd=event,ToggleGPIO=12,1
 
+Internal variables
+------------------
+
+A really great feature to use is the 16 internal variables. You set them like this:
+
+.. code-block:: html
+
+ Let,<n>,<value>
+
+Where n can be 1 to 16 and the value an float. To use the values in strings you can
+either use the ``%v7%`` syntax or ``[var#7]``. BUT for formulas you need to use the square
+brackets in order for it to compute, i.e. ``[var#12]``.
+
+
+Averaging filters
+-----------------
+
+You may want to clear peaks in otherwise jumpy measurements and if you cannot
+remove the jumpiness with hardware you might want to add a filter in the software.
+
+A **10 value average**:
+
+.. code-block:: html
+
+  On Temp#Value Do
+   Let,10,[VAR#9]
+   Let,9,[VAR#8]
+   Let,8,[VAR#7]
+   Let,7,[VAR#6]
+   Let,6,[VAR#5]
+   Let,5,[VAR#4]
+   Let,4,[VAR#3]
+   Let,3,[VAR#2]
+   Let,2,[VAR#1]
+   Let,1,[Temp#Value]
+   TaskValueSet,12,1,([VAR#1]+[VAR#2]+[VAR#3]+[VAR#4]+[VAR#5]+[VAR#6]+[VAR#7]+[VAR#8]+[VAR#9]+[VAR#10])/10
+  EndOn
+
+In the above example we use the sensor value of ``Temp#Value`` to get the trigger event,
+we then add all the previous 9 values to the internal variables and the newly acquired
+value to the first variable. We then summarize them and divide them by 10 and store it
+as a dummy variable (example is on task 12, value 1) which we use to publish the sliding
+value instead of the sensor value.
+
+Another filter could be to just use the previous value and **dilute** the new value with that one:
+
+.. code-block:: html
+
+  On Temp#Value Do
+    Let,2,[VAR#1]
+    Let,1,[Temp#Value]
+    TaskValueSet,12,1,(3*[VAR#1]+[VAR#2])/4
+  EndOn
+
+
+Yet another filter could be to add the new value to a **summarized average**:
+
+.. code-block:: html
+
+  On Temp#Value Do
+    Let,1,[Temp#Value]
+    TaskValueSet,12,1,([VAR#1]+3*[VAR#2])/4
+    Let,2,[Dummy#Value]
+  EndOn
+
+What you should use? That is a case by case question. Try them all and see which
+one suits your actual scenario the best.
+
 PIR and LDR
 -----------
 
 .. code-block:: html
 
- On PIR#Switch do
+ On PIR#State do
    if [LDR#Light]<500
-     gpio,16,[PIR#Switch]
+     gpio,16,[PIR#State]
    endif
  endon
 
@@ -553,9 +571,9 @@ PIR and LDR
 
 .. code-block:: html
 
- on PIR#Switch=1 do
+ on PIR#State=1 do
    if [LDR#Light]<500
-     gpio,16,[PIR#Switch]
+     gpio,16,[PIR#State]
    endif
  endon
 
@@ -738,7 +756,7 @@ to make things happen during certain hours of the day:
 
 .. code-block:: html
 
-  On Pir#Switch=1 do
+  On Pir#State=1 do
    If %systime% < 07:00:00
     Gpio,16,0
    Endif

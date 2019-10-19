@@ -1,3 +1,240 @@
+#include "src/DataStructs/Caches.h"
+#include "src/DataStructs/NodeStruct.h"
+#include "src/DataStructs/PinMode.h"
+#include "src/DataStructs/RTCStruct.h"
+
+#include "src/Globals/CRCValues.h"
+#include "src/Globals/Cache.h"
+#include "src/Globals/Device.h"
+#include "src/Globals/RTC.h"
+#include "src/Globals/ResetFactoryDefaultPref.h"
+#include "src/Globals/Services.h"
+
+
+/*********************************************************************************************\
+   ESPEasy specific strings
+\*********************************************************************************************/
+
+
+String getNodeTypeDisplayString(byte nodeType) {
+  switch (nodeType)
+  {
+    case NODE_TYPE_ID_ESP_EASY_STD:     return F("ESP Easy");
+    case NODE_TYPE_ID_ESP_EASYM_STD:    return F("ESP Easy Mega");
+    case NODE_TYPE_ID_ESP_EASY32_STD:   return F("ESP Easy 32");
+    case NODE_TYPE_ID_RPI_EASY_STD:     return F("RPI Easy");
+    case NODE_TYPE_ID_ARDUINO_EASY_STD: return F("Arduino Easy");
+    case NODE_TYPE_ID_NANO_EASY_STD:    return F("Nano Easy");
+  }
+  return "";
+}
+
+String getSettingsTypeString(SettingsType settingsType) {
+  switch (settingsType) {
+    case BasicSettings_Type:            return F("Settings");
+    case TaskSettings_Type:             return F("TaskSettings");
+    case CustomTaskSettings_Type:       return F("CustomTaskSettings");
+    case ControllerSettings_Type:       return F("ControllerSettings");
+    case CustomControllerSettings_Type: return F("CustomControllerSettings");
+    case NotificationSettings_Type:     return F("NotificationSettings");
+    default:
+      break;
+  }
+  return "";
+}
+
+#ifdef USES_MQTT
+String getMQTT_state() {
+  switch (MQTTclient.state()) {
+    case MQTT_CONNECTION_TIMEOUT     : return F("Connection timeout");
+    case MQTT_CONNECTION_LOST        : return F("Connection lost");
+    case MQTT_CONNECT_FAILED         : return F("Connect failed");
+    case MQTT_DISCONNECTED           : return F("Disconnected");
+    case MQTT_CONNECTED              : return F("Connected");
+    case MQTT_CONNECT_BAD_PROTOCOL   : return F("Connect bad protocol");
+    case MQTT_CONNECT_BAD_CLIENT_ID  : return F("Connect bad client_id");
+    case MQTT_CONNECT_UNAVAILABLE    : return F("Connect unavailable");
+    case MQTT_CONNECT_BAD_CREDENTIALS: return F("Connect bad credentials");
+    case MQTT_CONNECT_UNAUTHORIZED   : return F("Connect unauthorized");
+    default: break;
+  }
+  return "";
+}
+#endif //USES_MQTT
+
+/********************************************************************************************\
+  Get system information
+  \*********************************************************************************************/
+String getLastBootCauseString() {
+  switch (lastBootCause)
+  {
+    case BOOT_CAUSE_MANUAL_REBOOT: return F("Manual reboot");
+    case BOOT_CAUSE_DEEP_SLEEP: //nobody should ever see this, since it should sleep again right away.
+       return F("Deep sleep");
+    case BOOT_CAUSE_COLD_BOOT:
+       return F("Cold boot");
+    case BOOT_CAUSE_EXT_WD:
+       return F("External Watchdog");
+  }
+  return getUnknownString();
+}
+
+#ifdef ESP32
+// See https://github.com/espressif/esp-idf/blob/master/components/esp32/include/rom/rtc.h
+String getResetReasonString(byte icore) {
+  bool isDEEPSLEEP_RESET(false);
+  switch (rtc_get_reset_reason( (RESET_REASON) icore)) {
+    case NO_MEAN                : return F("NO_MEAN");
+    case POWERON_RESET          : return F("Vbat power on reset");
+    case SW_RESET               : return F("Software reset digital core");
+    case OWDT_RESET             : return F("Legacy watch dog reset digital core");
+    case DEEPSLEEP_RESET        : isDEEPSLEEP_RESET = true; break;
+    case SDIO_RESET             : return F("Reset by SLC module, reset digital core");
+    case TG0WDT_SYS_RESET       : return F("Timer Group0 Watch dog reset digital core");
+    case TG1WDT_SYS_RESET       : return F("Timer Group1 Watch dog reset digital core");
+    case RTCWDT_SYS_RESET       : return F("RTC Watch dog Reset digital core");
+    case INTRUSION_RESET        : return F("Instrusion tested to reset CPU");
+    case TGWDT_CPU_RESET        : return F("Time Group reset CPU");
+    case SW_CPU_RESET           : return F("Software reset CPU");
+    case RTCWDT_CPU_RESET       : return F("RTC Watch dog Reset CPU");
+    case EXT_CPU_RESET          : return F("for APP CPU, reseted by PRO CPU");
+    case RTCWDT_BROWN_OUT_RESET : return F("Reset when the vdd voltage is not stable");
+    case RTCWDT_RTC_RESET       : return F("RTC Watch dog reset digital core and rtc module");
+    default: break;
+  }
+  if (isDEEPSLEEP_RESET) {
+    String reason = F("Deep Sleep, Wakeup reason (");
+    reason += rtc_get_wakeup_cause();
+    reason += ')';
+    return reason;
+  }
+  return getUnknownString();
+}
+#endif
+
+String getResetReasonString() {
+  #ifdef ESP32
+  String reason = F("CPU0: ");
+  reason += getResetReasonString(0);
+  reason += F(" CPU1: ");
+  reason += getResetReasonString(1);
+  return reason;
+  #else
+  return ESP.getResetReason();
+  #endif
+}
+
+uint32_t getFlashRealSizeInBytes() {
+  #if defined(ESP32)
+    return ESP.getFlashChipSize();
+  #else
+    return ESP.getFlashChipRealSize(); //ESP.getFlashChipSize();
+  #endif
+}
+
+String getSystemBuildString() {
+  String result;
+  result += BUILD;
+  result += ' ';
+  result += F(BUILD_NOTES);
+  return result;
+}
+
+String getPluginDescriptionString() {
+  String result;
+  #ifdef PLUGIN_BUILD_NORMAL
+    result += F(" [Normal]");
+  #endif
+  #ifdef PLUGIN_BUILD_TESTING
+    result += F(" [Testing]");
+  #endif
+  #ifdef PLUGIN_BUILD_DEV
+    result += F(" [Development]");
+  #endif
+  #ifdef PLUGIN_DESCR
+  result += " [";
+  result += F(PLUGIN_DESCR);
+  result += ']';
+  #endif
+  #ifdef USE_NON_STANDARD_24_TASKS
+  result += F(" 24tasks");
+  #endif
+  return result;
+}
+
+String getSystemLibraryString() {
+  String result;
+  #if defined(ESP32)
+    result += F("ESP32 SDK ");
+    result += ESP.getSdkVersion();
+  #else
+    result += F("ESP82xx Core ");
+    result += ESP.getCoreVersion();
+    result += F(", NONOS SDK ");
+    result += system_get_sdk_version();
+    result += F(", LWIP: ");
+    result += getLWIPversion();
+  #endif
+  if (puyaSupport()) {
+    result += F(" PUYA support");
+  }
+  return result;
+}
+
+#ifndef ESP32
+String getLWIPversion() {
+  String result;
+  result += LWIP_VERSION_MAJOR;
+  result += '.';
+  result += LWIP_VERSION_MINOR;
+  result += '.';
+  result += LWIP_VERSION_REVISION;
+  if (LWIP_VERSION_IS_RC) {
+    result += F("-RC");
+    result += LWIP_VERSION_RC;
+  } else if (LWIP_VERSION_IS_DEVELOPMENT) {
+    result += F("-dev");
+  }
+  return result;
+}
+#endif
+
+bool puyaSupport() {
+  bool supported = false;
+#ifdef PUYA_SUPPORT
+  // New support starting core 2.5.0
+  if (PUYA_SUPPORT) supported = true;
+#endif
+#ifdef PUYASUPPORT
+  // Old patch
+  supported = true;
+#endif
+  return supported;
+}
+
+uint8_t getFlashChipVendorId() {
+#ifdef PUYA_SUPPORT
+  return ESP.getFlashChipVendorId();
+#else
+  #if defined(ESP8266)
+    uint32_t flashChipId = ESP.getFlashChipId();
+    return (flashChipId & 0x000000ff);
+  #else
+    return 0xFF; // Not an existing function for ESP32
+  #endif
+#endif
+}
+
+bool flashChipVendorPuya() {
+  uint8_t vendorId = getFlashChipVendorId();
+  return vendorId == 0x85;  // 0x146085 PUYA
+}
+
+
+/*********************************************************************************************\
+ Memory management
+\*********************************************************************************************/
+
 // clean up tcp connections that are in TIME_WAIT status, to conserve memory
 // In future versions of WiFiClient it should be possible to call abort(), but
 // this feature is not in all upstream versions yet.
@@ -43,7 +280,7 @@ uint32_t getFreeStackWatermark() {
 bool canYield() { return true; }
 
 #else
-#if defined(ARDUINO_ESP8266_RELEASE_2_3_0) || defined(ARDUINO_ESP8266_RELEASE_2_4_0) || defined(ARDUINO_ESP8266_RELEASE_2_4_1)
+#ifdef CORE_PRE_2_4_2
 // All version before core 2.4.2
 extern "C" {
 #include <cont.h>
@@ -102,16 +339,42 @@ bool allocatedOnStack(const void* address) {
 #endif // ARDUINO_ESP8266_RELEASE_2_x_x
 #endif // ESP32
 
+
+/**********************************************************
+*                                                         *
+* Deep Sleep related functions                            *
+*                                                         *
+**********************************************************/
+int getDeepSleepMax()
+{
+  int dsmax = 4294; // About 71 minutes, limited by hardware
+
+#if defined(CORE_POST_2_5_0)
+  dsmax = INT_MAX;
+
+  if ((ESP.deepSleepMax() / 1000000ULL) <= (uint64_t)INT_MAX) {
+    dsmax = (int)(ESP.deepSleepMax() / 1000000ULL);
+  }
+#endif // if defined(CORE_POST_2_5_0)
+  return dsmax;
+}
+
 bool isDeepSleepEnabled()
 {
-  if (!Settings.deepSleep)
+  if (!Settings.deepSleep) {
     return false;
+  }
 
-  //cancel deep sleep loop by pulling the pin GPIO16(D0) to GND
-  //recommended wiring: 3-pin-header with 1=RST, 2=D0, 3=GND
+  // cancel deep sleep loop by pulling the pin GPIO16(D0) to GND
+  // recommended wiring: 3-pin-header with 1=RST, 2=D0, 3=GND
   //                    short 1-2 for normal deep sleep / wakeup loop
   //                    short 2-3 to cancel sleep loop for modifying settings
+<<<<<<< HEAD
   pinMode(16,INPUT_PULLUP); // FIXME TD-er: Pin 16 only knows INPUT_PULLDOWN_16
+=======
+  pinMode(16, INPUT_PULLUP);
+
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
   if (!digitalRead(16))
   {
     return false;
@@ -121,130 +384,163 @@ bool isDeepSleepEnabled()
 
 bool readyForSleep()
 {
-  if (!isDeepSleepEnabled())
+  if (!isDeepSleepEnabled()) {
     return false;
-  if (!checkConnectionsEstablished()) {
+  }
+
+  if (!WiFiConnected()) {
     // Allow 12 seconds to establish connections
     return timeOutReached(timerAwakeFromDeepSleep + 12000);
   }
   return timeOutReached(timerAwakeFromDeepSleep + 1000 * Settings.deepSleep);
 }
 
-void deepSleep(int delay)
+void deepSleep(int dsdelay)
 {
-
   checkRAM(F("deepSleep"));
+
   if (!isDeepSleepEnabled())
   {
-    //Deep sleep canceled by GPIO16(D0)=LOW
+    // Deep sleep canceled by GPIO16(D0)=LOW
     return;
   }
 
-  //first time deep sleep? offer a way to escape
-  if (lastBootCause!=BOOT_CAUSE_DEEP_SLEEP)
+  // first time deep sleep? offer a way to escape
+  if (lastBootCause != BOOT_CAUSE_DEEP_SLEEP)
   {
     addLog(LOG_LEVEL_INFO, F("SLEEP: Entering deep sleep in 30 seconds."));
+
     if (Settings.UseRules && isDeepSleepEnabled())
-      {
-        String event = F("System#NoSleep=30");
-        rulesProcessing(event);
-      }
+    {
+      String event = F("System#NoSleep=30");
+      rulesProcessing(event);
+    }
     delayBackground(30000);
-    //disabled?
+
+    // disabled?
     if (!isDeepSleepEnabled())
     {
       addLog(LOG_LEVEL_INFO, F("SLEEP: Deep sleep cancelled (GPIO16 connected to GND)"));
       return;
     }
   }
-  saveUserVarToRTC();
-  deepSleepStart(delay); // Call deepSleepStart function after these checks
+  deepSleepStart(dsdelay); // Call deepSleepStart function after these checks
 }
 
-void deepSleepStart(int delay)
+void deepSleepStart(int dsdelay)
 {
   // separate function that is called from above function or directly from rules, usign deepSleep as a one-shot
-  String event = F("System#Sleep");
-  rulesProcessing(event);
-
-
-  RTC.deepSleepState = 1;
-  saveToRTC();
-
-  if (delay > 4294 || delay < 0)
-    delay = 4294;   //max sleep time ~1.2h
+  if (Settings.UseRules)
+  {
+    String event = F("System#Sleep");
+    rulesProcessing(event);
+  }
 
   addLog(LOG_LEVEL_INFO, F("SLEEP: Powering down to deepsleep..."));
+  RTC.deepSleepState = 1;
+  prepareShutdown();
+
   #if defined(ESP8266)
-    ESP.deepSleep((uint32_t)delay * 1000000, WAKE_RF_DEFAULT);
-  #endif
+    # if defined(CORE_POST_2_5_0)
+  uint64_t deepSleep_usec = dsdelay * 1000000ULL;
+
+  if ((deepSleep_usec > ESP.deepSleepMax()) || (dsdelay < 0)) {
+    deepSleep_usec = ESP.deepSleepMax();
+  }
+  ESP.deepSleepInstant(deepSleep_usec, WAKE_RF_DEFAULT);
+    # else // if defined(CORE_POST_2_5_0)
+
+  if ((dsdelay > 4294) || (dsdelay < 0)) {
+    dsdelay = 4294; // max sleep time ~71 minutes
+  }
+  ESP.deepSleep((uint32_t)dsdelay * 1000000, WAKE_RF_DEFAULT);
+    # endif // if defined(CORE_POST_2_5_0)
+  #endif // if defined(ESP8266)
   #if defined(ESP32)
-    esp_sleep_enable_timer_wakeup((uint32_t)delay * 1000000);
-    esp_deep_sleep_start();
-  #endif
+  esp_sleep_enable_timer_wakeup((uint32_t)dsdelay * 1000000);
+  esp_deep_sleep_start();
+  #endif // if defined(ESP32)
 }
 
 boolean remoteConfig(struct EventStruct *event, const String& string)
 {
   checkRAM(F("remoteConfig"));
   boolean success = false;
-  String command = parseString(string, 1);
+  String  command = parseString(string, 1);
 
   if (command == F("config"))
   {
     success = true;
+
     if (parseString(string, 2) == F("task"))
     {
       String configTaskName = parseStringKeepCase(string, 3);
-      String configCommand = parseStringToEndKeepCase(string, 4);
-      if (configTaskName.length() == 0 || configCommand.length() == 0)
-        return success; // TD-er: Should this be return false?
+      String configCommand  = parseStringToEndKeepCase(string, 4);
 
-      int8_t index = getTaskIndexByName(configTaskName);
-      if (index != -1)
+      if ((configTaskName.length() == 0) || (configCommand.length() == 0)) {
+        return success; // TD-er: Should this be return false?
+      }
+      byte index = findTaskIndexByName(configTaskName);
+
+      if (index != TASKS_MAX)
       {
         event->TaskIndex = index;
-        success = PluginCall(PLUGIN_SET_CONFIG, event, configCommand);
+        success          = PluginCall(PLUGIN_SET_CONFIG, event, configCommand);
       }
     }
   }
   return success;
 }
 
-int8_t getTaskIndexByName(const String& TaskNameSearch)
-{
-
-  for (byte x = 0; x < TASKS_MAX; x++)
-  {
-    LoadTaskSettings(x);
-    String TaskName = getTaskDeviceName(x);
-    if ((TaskName.length() != 0 ) && (TaskNameSearch.equalsIgnoreCase(TaskName)))
-    {
-      return x;
-    }
-  }
-  return -1;
+/*********************************************************************************************\
+   Collect the stored preference for factory default 
+\*********************************************************************************************/
+void applyFactoryDefaultPref() {
+  // TODO TD-er: Store it in more places to make it more persistent
+  Settings.ResetFactoryDefaultPreference = ResetFactoryDefaultPreference.getPreference();
 }
+
 
 /*********************************************************************************************\
    Device GPIO name functions to share flash strings
-  \*********************************************************************************************/
+\*********************************************************************************************/
+String formatGpioDirection(gpio_direction direction) {
+  switch (direction) {
+    case gpio_input:         return F("&larr; ");
+    case gpio_output:        return F("&rarr; ");
+    case gpio_bidirectional: return F("&#8644; ");
+  }
+  return "";
+}
+
+String formatGpioLabel(int gpio, bool includeWarning) {
+  int  pinnr = -1;
+  bool input, output, warning;
+
+  if (getGpioInfo(gpio, pinnr, input, output, warning)) {
+    if (!includeWarning) {
+      return createGPIO_label(gpio, pinnr, true, true, false);
+    }
+    return createGPIO_label(gpio, pinnr, input, output, warning);
+  }
+  return "-";
+}
+
 String formatGpioName(const String& label, gpio_direction direction, bool optional) {
   int reserveLength = 5 /* "GPIO " */ + 8 /* "&#8644; " */ + label.length();
+
   if (optional) {
     reserveLength += 11;
   }
   String result;
   result.reserve(reserveLength);
   result += F("GPIO ");
-  switch (direction) {
-    case gpio_input:         result += F("&larr; "); break;
-    case gpio_output:        result += F("&rarr; "); break;
-    case gpio_bidirectional: result += F("&#8644; "); break;
-  }
+  result += formatGpioDirection(direction);
   result += label;
-  if (optional)
+
+  if (optional) {
     result += F("(optional)");
+  }
   return result;
 }
 
@@ -357,28 +653,17 @@ boolean hasPinState(byte plugin, byte index)
 
 */
 
-/*********************************************************************************************\
-   Bitwise operators
-  \*********************************************************************************************/
-bool getBitFromUL(uint32_t number, byte bitnr) {
-  return (number >> bitnr) & 1UL;
-}
-
-void setBitToUL(uint32_t& number, byte bitnr, bool value) {
-  uint32_t newbit = value ? 1UL : 0UL;
-  number ^= (-newbit ^ number) & (1UL << bitnr);
-}
 
 
 /*********************************************************************************************\
    report pin mode & state (info table) using json
   \*********************************************************************************************/
-String getPinStateJSON(boolean search, uint32_t key, const String& log, uint16_t noSearchValue)
+String getPinStateJSON(boolean search, uint32_t key, const String& log, int16_t noSearchValue)
 {
   checkRAM(F("getPinStateJSON"));
   printToWebJSON = true;
   byte mode = PIN_MODE_INPUT;
-  uint16_t value = noSearchValue;
+  int16_t value = noSearchValue;
   boolean found = false;
 
   if (search && existPortStatus(key))
@@ -498,9 +783,9 @@ void statusLED(boolean traffic)
 /********************************************************************************************\
   delay in milliseconds with background processing
   \*********************************************************************************************/
-void delayBackground(unsigned long delay)
+void delayBackground(unsigned long dsdelay)
 {
-  unsigned long timer = millis() + delay;
+  unsigned long timer = millis() + dsdelay;
   while (!timeOutReached(timer))
     backgroundtasks();
 }
@@ -531,6 +816,7 @@ void parseCommandString(struct EventStruct *event, const String& string)
   \*********************************************************************************************/
 void taskClear(byte taskIndex, boolean save)
 {
+  if (taskIndex >= TASKS_MAX) return;
   checkRAM(F("taskClear"));
   Settings.clearTask(taskIndex);
   ExtraTaskSettings.clear(); // Invalidate any cached values.
@@ -557,6 +843,7 @@ String checkTaskSettings(byte taskIndex) {
       return F("Warning: Task Device Name is empty. It is adviced to give tasks an unique name");
     }
   }
+  // Do not use the cached function findTaskIndexByName since that one does rely on the fact names should be unique.
   for (int i = 0; i < TASKS_MAX; ++i) {
     if (i != taskIndex && Settings.TaskDeviceEnabled[i]) {
       LoadTaskSettings(i);
@@ -574,14 +861,12 @@ String checkTaskSettings(byte taskIndex) {
   return err;
 }
 
-
-
 /********************************************************************************************\
-  Find device index corresponding to task number setting
-  \*********************************************************************************************/
+   Find device index corresponding to task number setting
+ \*********************************************************************************************/
 byte getDeviceIndex(byte Number)
 {
-  for (byte x = 0; x <= deviceCount ; x++) {
+  for (byte x = 0; x <= deviceCount; x++) {
     if (Device[x].Number == Number) {
       return x;
     }
@@ -590,21 +875,11 @@ byte getDeviceIndex(byte Number)
 }
 
 /********************************************************************************************\
-  Find name of plugin given the plugin device index..
-  \*********************************************************************************************/
-String getPluginNameFromDeviceIndex(byte deviceIndex) {
-  String deviceName = "";
-  Plugin_ptr[deviceIndex](PLUGIN_GET_DEVICENAME, 0, deviceName);
-  return deviceName;
-}
-
-
-/********************************************************************************************\
-  Find protocol index corresponding to protocol setting
-  \*********************************************************************************************/
+   Find protocol index corresponding to protocol setting
+ \*********************************************************************************************/
 byte getProtocolIndex(byte Number)
 {
-  for (byte x = 0; x <= protocolCount ; x++) {
+  for (byte x = 0; x <= protocolCount; x++) {
     if (Protocol[x].Number == Number) {
       return x;
     }
@@ -649,29 +924,31 @@ bool GetArgv(const char *string, String& argvString, unsigned int argc) {
 
 bool GetArgvBeginEnd(const char *string, const unsigned int argc, int& pos_begin, int& pos_end) {
   pos_begin = -1;
-  pos_end = -1;
+  pos_end   = -1;
   size_t string_len = strlen(string);
   unsigned int string_pos = 0, argc_pos = 0;
-  char c, d; // c = current char, d = next char (if available)
-  boolean parenthesis = false;
-  char matching_parenthesis = '"';
+  boolean parenthesis          = false;
+  char    matching_parenthesis = '"';
 
   while (string_pos < string_len)
   {
+    char c, d; // c = current char, d = next char (if available)
     c = string[string_pos];
     d = 0;
+
     if ((string_pos + 1) < string_len) {
       d = string[string_pos + 1];
     }
 
-    if       (!parenthesis && c == ' ' && d == ' ') {}
-    else if  (!parenthesis && c == ' ' && d == ',') {}
-    else if  (!parenthesis && c == ',' && d == ' ') {}
-    else if  (!parenthesis && c == ' ' && d >= 33 && d <= 126) {}
-    else if  (!parenthesis && c == ',' && d >= 33 && d <= 126) {}
-    else if  (c == '"' || c == '\'' || c == '[') {
-      parenthesis = true;
+    if       (!parenthesis && (c == ' ') && (d == ' ')) {}
+    else if  (!parenthesis && (c == ' ') && (d == ',')) {}
+    else if  (!parenthesis && (c == ',') && (d == ' ')) {}
+    else if  (!parenthesis && (c == ' ') && (d >= 33) && (d <= 126)) {}
+    else if  (!parenthesis && (c == ',') && (d >= 33) && (d <= 126)) {}
+    else if  ((c == '"') || (c == '\'') || (c == '[')) {
+      parenthesis          = true;
       matching_parenthesis = c;
+
       if (c == '[') {
         matching_parenthesis = ']';
       }
@@ -680,11 +957,11 @@ bool GetArgvBeginEnd(const char *string, const unsigned int argc, int& pos_begin
     {
       if (pos_begin == -1) {
         pos_begin = string_pos;
-        pos_end = string_pos;
+        pos_end   = string_pos;
       }
       ++pos_end;
 
-      if ((!parenthesis && (d == ' ' || d == ',' || d == 0)) || (parenthesis && (d == matching_parenthesis))) // end of word
+      if ((!parenthesis && ((d == ' ') || (d == ',') || (d == 0))) || (parenthesis && (d == matching_parenthesis))) // end of word
       {
         if (d == matching_parenthesis) {
           parenthesis = false;
@@ -696,7 +973,7 @@ bool GetArgvBeginEnd(const char *string, const unsigned int argc, int& pos_begin
           return true;
         }
         pos_begin = -1;
-        pos_end = -1;
+        pos_end   = -1;
         string_pos++;
       }
     }
@@ -724,11 +1001,11 @@ bool GetArgvBeginEnd(const char *string, const unsigned int argc, int& pos_begin
   \*********************************************************************************************/
 #if defined(ARDUINO_ESP8266_RELEASE_2_3_0)
 void dump (uint32_t addr) { //Seems already included in core 2.4 ...
-  serialPrint (addr, HEX);
+  serialPrint (String(addr, HEX));
   serialPrint(": ");
   for (uint32_t a = addr; a < addr + 16; a++)
   {
-    serialPrint ( pgm_read_byte(a), HEX);
+    serialPrint ( String(pgm_read_byte(a), HEX));
     serialPrint (" ");
   }
   serialPrintln("");
@@ -851,8 +1128,8 @@ void ResetFactory()
   if (!ResetFactoryDefaultPreference.keepNetwork()) {
     Settings.clearNetworkSettings();
     // TD-er Reset access control
-    str2ip((char*)DEFAULT_IPRANGE_LOW, SecuritySettings.AllowedIPrangeLow);
-    str2ip((char*)DEFAULT_IPRANGE_HIGH, SecuritySettings.AllowedIPrangeHigh);
+    str2ip(F(DEFAULT_IPRANGE_LOW), SecuritySettings.AllowedIPrangeLow);
+    str2ip(F(DEFAULT_IPRANGE_HIGH), SecuritySettings.AllowedIPrangeHigh);
     SecuritySettings.IPblockLevel = DEFAULT_IP_BLOCK_LEVEL;
 
     #if DEFAULT_USE_STATIC_IP
@@ -1012,141 +1289,18 @@ unsigned long FreeMem(void)
   #endif
 }
 
-/********************************************************************************************\
-  Get system information
-  \*********************************************************************************************/
-String getLastBootCauseString() {
-  switch (lastBootCause)
-  {
-    case BOOT_CAUSE_MANUAL_REBOOT: return F("Manual reboot");
-    case BOOT_CAUSE_DEEP_SLEEP: //nobody should ever see this, since it should sleep again right away.
-       return F("Deep sleep");
-    case BOOT_CAUSE_COLD_BOOT:
-       return F("Cold boot");
-    case BOOT_CAUSE_EXT_WD:
-       return F("External Watchdog");
-  }
-  return F("Unknown");
-}
 
-#ifdef ESP32
-// See https://github.com/espressif/esp-idf/blob/master/components/esp32/include/rom/rtc.h
-String getResetReasonString(byte icore) {
-  bool isDEEPSLEEP_RESET(false);
-  switch (rtc_get_reset_reason( (RESET_REASON) icore)) {
-    case NO_MEAN                : return F("NO_MEAN");
-    case POWERON_RESET          : return F("Vbat power on reset");
-    case SW_RESET               : return F("Software reset digital core");
-    case OWDT_RESET             : return F("Legacy watch dog reset digital core");
-    case DEEPSLEEP_RESET        : isDEEPSLEEP_RESET = true; break;
-    case SDIO_RESET             : return F("Reset by SLC module, reset digital core");
-    case TG0WDT_SYS_RESET       : return F("Timer Group0 Watch dog reset digital core");
-    case TG1WDT_SYS_RESET       : return F("Timer Group1 Watch dog reset digital core");
-    case RTCWDT_SYS_RESET       : return F("RTC Watch dog Reset digital core");
-    case INTRUSION_RESET        : return F("Instrusion tested to reset CPU");
-    case TGWDT_CPU_RESET        : return F("Time Group reset CPU");
-    case SW_CPU_RESET           : return F("Software reset CPU");
-    case RTCWDT_CPU_RESET       : return F("RTC Watch dog Reset CPU");
-    case EXT_CPU_RESET          : return F("for APP CPU, reseted by PRO CPU");
-    case RTCWDT_BROWN_OUT_RESET : return F("Reset when the vdd voltage is not stable");
-    case RTCWDT_RTC_RESET       : return F("RTC Watch dog reset digital core and rtc module");
-    default: break;
-  }
-  if (isDEEPSLEEP_RESET) {
-    String reason = F("Deep Sleep, Wakeup reason (");
-    reason += rtc_get_wakeup_cause();
-    reason += ')';
-    return reason;
-  }
-  return F("Unknown");
-}
-#endif
-
-String getResetReasonString() {
-  #ifdef ESP32
-  String reason = F("CPU0: ");
-  reason += getResetReasonString(0);
-  reason += F(" CPU1: ");
-  reason += getResetReasonString(1);
-  return reason;
-  #else
-  return ESP.getResetReason();
+unsigned long getMaxFreeBlock()
+{
+  unsigned long freemem = FreeMem();
+  #ifdef CORE_POST_2_5_0
+    // computing max free block is a rather extensive operation, so only perform when free memory is already low.
+    if (freemem < 6144) {
+      return ESP.getMaxFreeBlockSize();
+    }
   #endif
+  return freemem;
 }
-
-uint32_t getFlashRealSizeInBytes() {
-  #if defined(ESP32)
-    return ESP.getFlashChipSize();
-  #else
-    return ESP.getFlashChipRealSize(); //ESP.getFlashChipSize();
-  #endif
-}
-
-String getSystemBuildString() {
-  String result;
-  result += BUILD;
-  result += ' ';
-  result += F(BUILD_NOTES);
-  return result;
-}
-
-String getPluginDescriptionString() {
-  String result;
-  #ifdef PLUGIN_BUILD_NORMAL
-    result += F(" [Normal]");
-  #endif
-  #ifdef PLUGIN_BUILD_TESTING
-    result += F(" [Testing]");
-  #endif
-  #ifdef PLUGIN_BUILD_DEV
-    result += F(" [Development]");
-  #endif
-  #ifdef PLUGIN_DESCR
-  result += " [";
-  result += F(PLUGIN_DESCR);
-  result += ']';
-  #endif
-  return result;
-}
-
-String getSystemLibraryString() {
-  String result;
-  #if defined(ESP32)
-    result += F("ESP32 SDK ");
-    result += ESP.getSdkVersion();
-  #else
-    result += F("ESP82xx Core ");
-    result += ESP.getCoreVersion();
-    result += F(", NONOS SDK ");
-    result += system_get_sdk_version();
-    result += F(", LWIP: ");
-    result += getLWIPversion();
-  #endif
-  #ifdef PUYASUPPORT
-    result += F(" PUYA support");
-  #endif
-
-  return result;
-}
-
-#ifndef ESP32
-String getLWIPversion() {
-  String result;
-  result += LWIP_VERSION_MAJOR;
-  result += '.';
-  result += LWIP_VERSION_MINOR;
-  result += '.';
-  result += LWIP_VERSION_REVISION;
-  if (LWIP_VERSION_IS_RC) {
-    result += F("-RC");
-    result += LWIP_VERSION_RC;
-  } else if (LWIP_VERSION_IS_DEVELOPMENT) {
-    result += F("-dev");
-  }
-  return result;
-}
-#endif
-
 
 
 
@@ -1251,182 +1405,22 @@ float timeStringToSeconds(String tBuf) {
 	return sec;
 }
 
-/********************************************************************************************\
-  Init critical variables for logging (important during initial factory reset stuff )
-  \*********************************************************************************************/
-void initLog()
-{
-  //make sure addLog doesnt do any stuff before initalisation of Settings is complete.
-  Settings.UseSerial=true;
-  Settings.SyslogFacility=0;
-  setLogLevelFor(LOG_TO_SYSLOG, 0);
-  setLogLevelFor(LOG_TO_SERIAL, 2); //logging during initialisation
-  setLogLevelFor(LOG_TO_WEBLOG, 2);
-  setLogLevelFor(LOG_TO_SDCARD, 0);
-}
+
 
 /********************************************************************************************\
-  Logging
+  Clean up all before going to sleep or reboot.
   \*********************************************************************************************/
-String getLogLevelDisplayString(int logLevel) {
-  switch (logLevel) {
-    case LOG_LEVEL_NONE:       return F("None");
-    case LOG_LEVEL_ERROR:      return F("Error");
-    case LOG_LEVEL_INFO:       return F("Info");
-    case LOG_LEVEL_DEBUG:      return F("Debug");
-    case LOG_LEVEL_DEBUG_MORE: return F("Debug More");
-    case LOG_LEVEL_DEBUG_DEV:  return F("Debug dev");
-
-    default:
-      return "";
-  }
-}
-
-String getLogLevelDisplayStringFromIndex(byte index, int& logLevel) {
-  switch (index) {
-    case 0: logLevel = LOG_LEVEL_ERROR;      break;
-    case 1: logLevel = LOG_LEVEL_INFO;       break;
-    case 2: logLevel = LOG_LEVEL_DEBUG;      break;
-    case 3: logLevel = LOG_LEVEL_DEBUG_MORE; break;
-    case 4: logLevel = LOG_LEVEL_DEBUG_DEV;  break;
-
-    default: logLevel = -1; return "";
-  }
-  return getLogLevelDisplayString(logLevel);
-}
-
-void addToLog(byte loglevel, const String& string)
+void prepareShutdown()
 {
-  addToLog(loglevel, string.c_str());
-}
-
-void addToLog(byte logLevel, const __FlashStringHelper* flashString)
-{
-    checkRAM(F("addToLog"));
-    String s(flashString);
-    addToLog(logLevel, s.c_str());
-}
-
-void disableSerialLog() {
-  log_to_serial_disabled = true;
-  setLogLevelFor(LOG_TO_SERIAL, 0);
-}
-
-void setLogLevelFor(byte destination, byte logLevel) {
-  switch (destination) {
-    case LOG_TO_SERIAL:
-      if (!log_to_serial_disabled || logLevel == 0)
-        Settings.SerialLogLevel = logLevel; break;
-    case LOG_TO_SYSLOG: Settings.SyslogLevel = logLevel;    break;
-    case LOG_TO_WEBLOG: Settings.WebLogLevel = logLevel;    break;
-    case LOG_TO_SDCARD: Settings.SDLogLevel = logLevel;     break;
-    default:
-      break;
-  }
-  updateLogLevelCache();
-}
-
-void updateLogLevelCache() {
-  byte max_lvl = 0;
-  if (log_to_serial_disabled) {
-    Serial.setDebugOutput(false);
-  } else {
-    max_lvl = _max(max_lvl, Settings.SerialLogLevel);
-    if (Settings.SerialLogLevel >= LOG_LEVEL_DEBUG_MORE) {
-      Serial.setDebugOutput(true);
-    }
-  }
-  max_lvl = _max(max_lvl, Settings.SyslogLevel);
-  if (Logging.logActiveRead()) {
-    max_lvl = _max(max_lvl, Settings.WebLogLevel);
-  }
-#ifdef FEATURE_SD
-  max_lvl = _max(max_lvl, Settings.SDLogLevel);
-#endif
-  highest_active_log_level = max_lvl;
-}
-
-bool loglevelActiveFor(byte logLevel) {
-  return loglevelActive(logLevel, highest_active_log_level);
-}
-
-byte getSerialLogLevel() {
-  if (log_to_serial_disabled || !Settings.UseSerial) return 0;
-  if (wifiStatus != ESPEASY_WIFI_SERVICES_INITIALIZED){
-    if (Settings.SerialLogLevel < LOG_LEVEL_INFO) {
-      return LOG_LEVEL_INFO;
-    }
-  }
-  return Settings.SerialLogLevel;
-}
-
-byte getWebLogLevel() {
-  byte logLevelSettings = 0;
-  if (Logging.logActiveRead()) {
-    logLevelSettings = Settings.WebLogLevel;
-  } else {
-    if (Settings.WebLogLevel != 0) {
-      updateLogLevelCache();
-    }
-  }
-  return logLevelSettings;
-}
-
-boolean loglevelActiveFor(byte destination, byte logLevel) {
-  byte logLevelSettings = 0;
-  switch (destination) {
-    case LOG_TO_SERIAL: {
-      logLevelSettings = getSerialLogLevel();
-      break;
-    }
-    case LOG_TO_SYSLOG: {
-      logLevelSettings = Settings.SyslogLevel;
-      break;
-    }
-    case LOG_TO_WEBLOG: {
-      logLevelSettings = getWebLogLevel();
-      break;
-    }
-    case LOG_TO_SDCARD: {
-      #ifdef FEATURE_SD
-      logLevelSettings = Settings.SDLogLevel;
-      #endif
-      break;
-    }
-    default:
-      return false;
-  }
-  return loglevelActive(logLevel, logLevelSettings);
-}
-
-
-boolean loglevelActive(byte logLevel, byte logLevelSettings) {
-  return (logLevel <= logLevelSettings);
-}
-
-void addToLog(byte logLevel, const char *line)
-{
-  if (loglevelActiveFor(LOG_TO_SERIAL, logLevel)) {
-    addToSerialBuffer(String(millis()).c_str());
-    addToSerialBuffer(" : ");
-    addToSerialBuffer(line);
-    addNewlineToSerialBuffer();
-  }
-  if (loglevelActiveFor(LOG_TO_SYSLOG, logLevel)) {
-    syslog(logLevel, line);
-  }
-  if (loglevelActiveFor(LOG_TO_WEBLOG, logLevel)) {
-    Logging.add(logLevel, line);
-  }
-
-#ifdef FEATURE_SD
-  if (loglevelActiveFor(LOG_TO_SDCARD, logLevel)) {
-    File logFile = SD.open("log.dat", FILE_WRITE);
-    if (logFile)
-      logFile.println(line);
-    logFile.close();
-  }
-#endif
+#ifdef USES_MQTT
+  runPeriodicalMQTT();  // Flush outstanding MQTT messages
+#endif //USES_MQTT
+  process_serialWriteBuffer();
+  flushAndDisconnectAllClients();
+  saveUserVarToRTC();
+  saveToRTC();
+  SPIFFS.end();
+  delay(100); // give the node time to flush all before reboot or sleep
 }
 
 
@@ -1447,236 +1441,236 @@ void delayedReboot(int rebootDelay)
 }
 
 void reboot() {
-  // FIXME TD-er: Should network connections be actively closed or does this introduce new issues?
-  flushAndDisconnectAllClients();
+  prepareShutdown();
   #if defined(ESP32)
-    ESP.restart();
-  #else
-    ESP.reset();
-  #endif
-}
-
-
-/********************************************************************************************\
-  Save RTC struct to RTC memory
-  \*********************************************************************************************/
-boolean saveToRTC()
-{
-  #if defined(ESP32)
-    return false;
-  #else
-    if (!system_rtc_mem_write(RTC_BASE_STRUCT, (byte*)&RTC, sizeof(RTC)) || !readFromRTC())
-    {
-      addLog(LOG_LEVEL_ERROR, F("RTC  : Error while writing to RTC"));
-      return(false);
-    }
-    else
-    {
-      return(true);
-    }
-  #endif
-}
-
-
-/********************************************************************************************\
-  Initialize RTC memory
-  \*********************************************************************************************/
-void initRTC()
-{
-  memset(&RTC, 0, sizeof(RTC));
-  RTC.ID1 = 0xAA;
-  RTC.ID2 = 0x55;
-  saveToRTC();
-
-  memset(&UserVar, 0, sizeof(UserVar));
-  saveUserVarToRTC();
+  ESP.restart();
+  #else // if defined(ESP32)
+  ESP.reset();
+  #endif // if defined(ESP32)
 }
 
 /********************************************************************************************\
-  Read RTC struct from RTC memory
-  \*********************************************************************************************/
-boolean readFromRTC()
-{
-  #if defined(ESP32)
-    return false;
-  #else
-    if (!system_rtc_mem_read(RTC_BASE_STRUCT, (byte*)&RTC, sizeof(RTC)))
-      return(false);
-    return (RTC.ID1 == 0xAA && RTC.ID2 == 0x55);
-  #endif
-}
-
-
-/********************************************************************************************\
-  Save values to RTC memory
-\*********************************************************************************************/
-boolean saveUserVarToRTC()
-{
-  #if defined(ESP32)
-    return false;
-  #else
-    //addLog(LOG_LEVEL_DEBUG, F("RTCMEM: saveUserVarToRTC"));
-    byte* buffer = (byte*)&UserVar;
-    size_t size = sizeof(UserVar);
-    uint32_t sum = getChecksum(buffer, size);
-    boolean ret = system_rtc_mem_write(RTC_BASE_USERVAR, buffer, size);
-    ret &= system_rtc_mem_write(RTC_BASE_USERVAR+(size>>2), (byte*)&sum, 4);
-    return ret;
-  #endif
-}
-
-
-/********************************************************************************************\
-  Read RTC struct from RTC memory
-\*********************************************************************************************/
-boolean readUserVarFromRTC()
-{
-  #if defined(ESP32)
-    return false;
-  #else
-    //addLog(LOG_LEVEL_DEBUG, F("RTCMEM: readUserVarFromRTC"));
-    byte* buffer = (byte*)&UserVar;
-    size_t size = sizeof(UserVar);
-    boolean ret = system_rtc_mem_read(RTC_BASE_USERVAR, buffer, size);
-    uint32_t sumRAM = getChecksum(buffer, size);
-    uint32_t sumRTC = 0;
-    ret &= system_rtc_mem_read(RTC_BASE_USERVAR+(size>>2), (byte*)&sumRTC, 4);
-    if (!ret || sumRTC != sumRAM)
-    {
-      addLog(LOG_LEVEL_ERROR, F("RTC  : Checksum error on reading RTC user var"));
-      memset(buffer, 0, size);
-    }
-    return ret;
-  #endif
-}
-
-
-uint32_t getChecksum(byte* buffer, size_t size)
-{
-  uint32_t sum = 0x82662342;   //some magic to avoid valid checksum on new, uninitialized ESP
-  for (size_t i=0; i<size; i++)
-    sum += buffer[i];
-  return sum;
-}
-
-
-/********************************************************************************************\
-  Parse string template
-  \*********************************************************************************************/
-String parseTemplate(String &tmpString, byte lineSize)
+   Parse string template
+ \*********************************************************************************************/
+String parseTemplate(String& tmpString, byte lineSize)
 {
   checkRAM(F("parseTemplate"));
-  String newString = "";
-  //String tmpStringMid = "";
+
+  // Keep current loaded taskSettings to restore at the end.
+  byte   currentTaskIndex = ExtraTaskSettings.TaskIndex;
+  String newString        = "";
+
+  // String tmpStringMid = "";
   newString.reserve(lineSize);
 
   parseSystemVariables(tmpString, false);
+  
 
-  // replace task template variables
-  int leftBracketIndex = tmpString.indexOf('[');
-  if (leftBracketIndex == -1)
-    newString = tmpString;
-  else
-  {
-    byte count = 0;
-    byte currentTaskIndex = ExtraTaskSettings.TaskIndex;
+  int startpos = 0;
+  int lastStartpos = 0;
+  int endpos = 0;
+  String deviceName, valueName, format;
 
-    while (leftBracketIndex >= 0 && count < 10 - 1)
+  while (findNextDevValNameInString(tmpString, startpos, endpos, deviceName, valueName, format)) {
+    // First copy all upto the start of the [...#...] part to be replaced.
+    newString += tmpString.substring(lastStartpos, startpos);
+    
+    if (deviceName.equalsIgnoreCase(F("Plugin")))
     {
-      newString += tmpString.substring(0, leftBracketIndex);
-      tmpString = tmpString.substring(leftBracketIndex + 1);
-      int rightBracketIndex = tmpString.indexOf(']');
-      if (rightBracketIndex >= 0)
-      {
-        String tmpStringMid = tmpString.substring(0, rightBracketIndex);
-        tmpString = tmpString.substring(rightBracketIndex + 1);
-        int hashtagIndex = tmpStringMid.indexOf('#');
-        if (hashtagIndex >= 0) {
-          String deviceName = tmpStringMid.substring(0, hashtagIndex);
-          String valueName = tmpStringMid.substring(hashtagIndex + 1);
-          String valueFormat = "";
-          hashtagIndex = valueName.indexOf('#');
-          if (hashtagIndex >= 0)
-          {
-            valueFormat = valueName.substring(hashtagIndex + 1);
-            valueName = valueName.substring(0, hashtagIndex);
-          }
+      // Handle a plugin request.
+      // For example: "[Plugin#GPIO#Pinstate#N]"
+      // The command is stored in valueName & format
+      String command;
+      command.reserve(valueName.length() + format.length() + 1);
+      command  = valueName;
+      command += '#';
+      command += format;
+      command.replace('#', ',');
 
-          if (deviceName.equalsIgnoreCase(F("Plugin")))
+      if (PluginCall(PLUGIN_REQUEST, 0, command))
+      {
+        // Do not call transformValue here.
+        // The "format" is not empty so must not call the formatter function.
+        newString += command;
+      }
+    }
+    else if (deviceName.equalsIgnoreCase(F("Var")) || deviceName.equalsIgnoreCase(F("Int"))) 
+    {
+      // Address an internal variable either as float or as int
+      // For example: Let,10,[VAR#9]
+      int varNum;
+
+      if (validIntFromString(valueName, varNum)) {
+        if ((varNum > 0) && (varNum <= CUSTOM_VARS_MAX)) {
+          unsigned char nr_decimals = 2;
+          if (deviceName.equalsIgnoreCase(F("Int"))) {
+            nr_decimals = 0;
+          } else if (format.length() != 0)
           {
-            String tmpString = tmpStringMid.substring(7);
-            tmpString.replace('#', ',');
-            if (PluginCall(PLUGIN_REQUEST, 0, tmpString))
-              newString += tmpString;
+            // There is some formatting here, so do not throw away decimals
+            nr_decimals = 6;
           }
-          else if (deviceName.equalsIgnoreCase(F("Var"))) {
-            String tmpString = tmpStringMid.substring(4);
-            if (tmpString.length()>0 && isDigit(tmpString[0])) {
-              const int varNum = tmpString.toInt();
-              if (varNum > 0 && varNum <= CUSTOM_VARS_MAX)
-                newString += String(customFloatVar[varNum-1]);
-            }
-          }
-          else
-            for (byte y = 0; y < TASKS_MAX; y++)
-            {
-              if (Settings.TaskDeviceEnabled[y])
-              {
-                LoadTaskSettings(y);
-                String taskDeviceName = getTaskDeviceName(y);
-                if (taskDeviceName.length() != 0)
-                {
-                  if (deviceName.equalsIgnoreCase(taskDeviceName))
-                  {
-                    boolean match = false;
-                    for (byte z = 0; z < VARS_PER_TASK; z++)
-                      if (valueName.equalsIgnoreCase(ExtraTaskSettings.TaskDeviceValueNames[z]))
-                      {
-                        // here we know the task and value, so find the uservar
-                        // Try to format and transform the values
-                        // y = taskNr
-                        // z = var_of_task
-                        match = true;
-                        bool isvalid;
-                        String value = formatUserVar(y, z, isvalid);
-                        if (isvalid) {
-                          transformValue(newString, lineSize, value, valueFormat, tmpString);
-                          break;
-                        }
-                      }
-                    if (!match) // try if this is a get config request
-                    {
-                      struct EventStruct TempEvent;
-                      TempEvent.TaskIndex = y;
-                      String tmpName = valueName;
-                      if (PluginCall(PLUGIN_GET_CONFIG, &TempEvent, tmpName))
-                        newString += tmpName;
-                    }
-                    break;
-                  }
-                }
-              }
-            }
+          String value = String(customFloatVar[varNum - 1], nr_decimals);
+          transformValue(newString, lineSize, value, format, tmpString);
         }
       }
-      leftBracketIndex = tmpString.indexOf('[');
-      count++;
     }
-    checkRAM(F("parseTemplate2"));
-    newString += tmpString;
+    else 
+    {
+      // Address a value from a plugin.
+      // For example: "[bme#temp]"
+      // If value name is unknown, run a PLUGIN_GET_CONFIG command.
+      // For example: "[<taskname>#getLevel]"
+      byte taskIndex = findTaskIndexByName(deviceName);
 
-    if (currentTaskIndex != 255)
-      LoadTaskSettings(currentTaskIndex);
+      if (taskIndex != TASKS_MAX && Settings.TaskDeviceEnabled[taskIndex]) {
+        byte valueNr = findDeviceValueIndexByName(valueName, taskIndex);
+
+        if (valueNr != VARS_PER_TASK) {
+          // here we know the task and value, so find the uservar
+          // Try to format and transform the values
+          bool   isvalid;
+          String value = formatUserVar(taskIndex, valueNr, isvalid);
+
+          if (isvalid) {
+            transformValue(newString, lineSize, value, format, tmpString);
+          }
+        } else {
+          // try if this is a get config request
+          struct EventStruct TempEvent;
+          TempEvent.TaskIndex = taskIndex;
+          String tmpName = valueName;
+
+          if (PluginCall(PLUGIN_GET_CONFIG, &TempEvent, tmpName))
+          {
+            transformValue(newString, lineSize, tmpName, format, tmpString);
+          }                  
+        }
+      }
+    }
+    
+
+    // Conversion is done (or impossible) for the found "[...#...]"
+    // Continue with the next one.
+    lastStartpos = endpos + 1;
+    startpos     = endpos + 1;
+
+    // This may have taken some time, so call delay()
+    delay(0);
   }
 
-  //parseSystemVariables(newString, false);
+  // Copy the rest of the string (or all if no replacements were done)
+  newString += tmpString.substring(lastStartpos);
+  checkRAM(F("parseTemplate2"));
+
+  // Restore previous loaded taskSettings
+  if (currentTaskIndex != 255)
+  {
+    LoadTaskSettings(currentTaskIndex);
+  }
+
+  // parseSystemVariables(newString, false);
   parseStandardConversions(newString, false);
 
   // padding spaces
-  while (newString.length() < lineSize)
+  while (newString.length() < lineSize) {
     newString += ' ';
+  }
   checkRAM(F("parseTemplate3"));
   return newString;
+}
+
+// Find the first task with given name
+// Return TASKS_MAX when not found, else return taskIndex
+byte findTaskIndexByName(const String& deviceName)
+{
+  // cache this, since LoadTaskSettings does take some time.
+  auto result = Cache.taskIndexName.find(deviceName);
+  if (result != Cache.taskIndexName.end()) {
+    return result->second;
+  }
+  for (byte taskIndex = 0; taskIndex < TASKS_MAX; taskIndex++)
+  {
+    LoadTaskSettings(taskIndex);
+    String taskDeviceName = getTaskDeviceName(taskIndex);
+
+    if (taskDeviceName.length() != 0)
+    {
+      if (deviceName.equalsIgnoreCase(taskDeviceName))
+      {
+        Cache.taskIndexName[deviceName] = taskIndex;
+        return taskIndex;
+      }
+    }
+  }
+  return TASKS_MAX;
+}
+
+// Find the first device value index of a taskIndex.
+// Return VARS_PER_TASK if none found.
+byte findDeviceValueIndexByName(const String& valueName, byte taskIndex) 
+{
+  // cache this, since LoadTaskSettings does take some time.
+  auto result = Cache.taskIndexValueName.find(valueName);
+  if (result != Cache.taskIndexValueName.end()) {
+    return result->second;
+  }
+  LoadTaskSettings(taskIndex); // Probably already loaded, but just to be sure
+
+  const byte pluginID = getDeviceIndex(Settings.TaskDeviceNumber[taskIndex]);
+  const byte valCount = Device[pluginID].ValueCount;
+
+  for (byte valueNr = 0; valueNr < valCount; valueNr++)
+  {
+    if (valueName.equalsIgnoreCase(ExtraTaskSettings.TaskDeviceValueNames[valueNr]))
+    {
+      Cache.taskIndexValueName[valueName] = valueNr;
+      return valueNr;
+    }
+  }
+  return VARS_PER_TASK;
+}
+
+// Find positions of [...#...] in the given string.
+// Only update pos values on success.
+// Return true when found.
+bool findNextValMarkInString(const String& input, int& startpos, int& hashpos, int& endpos) {
+  int tmpStartpos = input.indexOf('[', startpos);
+
+  if (tmpStartpos == -1) { return false; }
+  int tmpHashpos = input.indexOf('#', tmpStartpos);
+
+  if (tmpHashpos == -1) { return false; }
+  int tmpEndpos = input.indexOf(']', tmpStartpos);
+
+  if (tmpEndpos == -1) { return false; }
+
+  if (tmpHashpos < tmpEndpos) {
+    hashpos  = tmpHashpos;
+    startpos = tmpStartpos;
+    endpos   = tmpEndpos;
+    return true;
+  }
+  return false;
+}
+
+// Find [deviceName#valueName] or [deviceName#valueName#format]
+bool findNextDevValNameInString(const String& input, int& startpos, int& endpos, String& deviceName, String& valueName, String& format) {
+  int hashpos;
+
+  if (!findNextValMarkInString(input, startpos, hashpos, endpos)) { return false; }
+  deviceName = input.substring(startpos + 1, hashpos);
+  valueName  = input.substring(hashpos + 1, endpos);
+  hashpos    = valueName.indexOf('#');
+
+  if (hashpos != -1) {
+    // Found an extra '#' in the valueName, will split valueName and format.
+    format    = valueName.substring(hashpos + 1);
+    valueName = valueName.substring(0, hashpos);
+  } else {
+    format = "";
+  }
+  return true;
 }
 
 /********************************************************************************************\
@@ -1711,22 +1705,34 @@ void transformValue(
     // valueJust="justification"
     if (valueFormat.length() > 0) //do the checks only if a Format is defined to optimize loop
     {
-      const int val = value == "0" ? 0 : 1; //to be used for GPIO status (0 or 1)
-      const float valFloat = value.toFloat();
-
+      int logicVal = 0;
+      float valFloat = 0.0;
+      if (validFloatFromString(value, valFloat))
+      {
+        //to be used for binary values (0 or 1)
+        logicVal = static_cast<int>(roundf(valFloat)) == 0 ? 0 : 1; 
+      } else {
+        if (value.length() > 0) {
+          logicVal = 1;
+        }        
+      }
       String tempValueFormat = valueFormat;
-      int tempValueFormatLength = tempValueFormat.length();
-      const int invertedIndex = tempValueFormat.indexOf('!');
-      const bool inverted = invertedIndex >= 0 ? 1 : 0;
-      if (inverted)
-        tempValueFormat.remove(invertedIndex,1);
+      {
+        const int invertedIndex = tempValueFormat.indexOf('!');
+        if (invertedIndex != -1) {
+          // We must invert the value.
+          logicVal = (logicVal == 0) ? 1 : 0;
+          // Remove the '!' from the string.
+          tempValueFormat.remove(invertedIndex,1);
+        }
+      }
 
       const int rightJustifyIndex = tempValueFormat.indexOf('R');
       const bool rightJustify = rightJustifyIndex >= 0 ? 1 : 0;
       if (rightJustify)
         tempValueFormat.remove(rightJustifyIndex,1);
 
-      tempValueFormatLength = tempValueFormat.length(); //needed because could have been changed after '!' and 'R' removal
+      const int tempValueFormatLength = tempValueFormat.length();
 
       //Check Transformation syntax
       if (tempValueFormatLength > 0)
@@ -1736,40 +1742,40 @@ void transformValue(
           case 'V': //value = value without transformations
             break;
           case 'O':
-            value = val == inverted ? F("OFF") : F(" ON"); //(equivalent to XOR operator)
+            value = logicVal == 0 ? F("OFF") : F(" ON"); //(equivalent to XOR operator)
             break;
           case 'C':
-            value = val == inverted ? F("CLOSE") : F(" OPEN");
+            value = logicVal == 0 ? F("CLOSE") : F(" OPEN");
             break;
           case 'M':
-            value = val == inverted ? F("AUTO") : F(" MAN");
+            value = logicVal == 0 ? F("AUTO") : F(" MAN");
             break;
           case 'm':
-            value = val == inverted ? F("A") : F("M");
+            value = logicVal == 0 ? F("A") : F("M");
             break;
           case 'H':
-            value = val == inverted ? F("COLD") : F(" HOT");
+            value = logicVal == 0 ? F("COLD") : F(" HOT");
             break;
           case 'U':
-            value = val == inverted ? F("DOWN") : F("  UP");
+            value = logicVal == 0 ? F("DOWN") : F("  UP");
             break;
           case 'u':
-            value = val == inverted ? F("D") : F("U");
+            value = logicVal == 0 ? F("D") : F("U");
             break;
           case 'Y':
-            value = val == inverted ? F(" NO") : F("YES");
+            value = logicVal == 0 ? F(" NO") : F("YES");
             break;
           case 'y':
-            value = val == inverted ? F("N") : F("Y");
+            value = logicVal == 0 ? F("N") : F("Y");
             break;
           case 'X':
-            value = val == inverted ? F("O") : F("X");
+            value = logicVal == 0 ? F("O") : F("X");
             break;
           case 'I':
-            value = val == inverted ? F("OUT") : F(" IN");
+            value = logicVal == 0 ? F("OUT") : F(" IN");
             break;
           case 'Z' :// return "0" or "1"
-            value = val == inverted ? "0" : "1";
+            value = logicVal == 0 ? "0" : "1";
             break;
           case 'D' ://Dx.y min 'x' digits zero filled & 'y' decimal fixed digits
             {
@@ -1804,10 +1810,13 @@ void transformValue(
                   break;
               }
               value = toString(valFloat,y);
-              int indexDot;
-              indexDot = value.indexOf('.') > 0 ? value.indexOf('.') : value.length();
-              for (byte f = 0; f < (x - indexDot); f++)
+              int indexDot = value.indexOf('.');
+              if (indexDot == -1) {
+                indexDot = value.length();
+              }              
+              for (byte f = 0; f < (x - indexDot); f++) {
                 value = "0" + value;
+              }
               break;
             }
           case 'F' :// FLOOR (round down)
@@ -1894,6 +1903,7 @@ void transformValue(
           newString += ' ';
       }
       {
+#ifndef BUILD_NO_DEBUG
         if (loglevelActiveFor(LOG_LEVEL_DEBUG)) {
           String logFormatted = F("DEBUG: Formatted String='");
           logFormatted += newString;
@@ -1901,19 +1911,22 @@ void transformValue(
           logFormatted += '\'';
           addLog(LOG_LEVEL_DEBUG, logFormatted);
         }
+#endif
       }
     }
   }
   //end of changes by giig1967g - 2018-04-18
 
-  newString += String(value);
+  newString += value;
   {
+#ifndef BUILD_NO_DEBUG
     if (loglevelActiveFor(LOG_LEVEL_DEBUG_DEV)) {
       String logParsed = F("DEBUG DEV: Parsed String='");
       logParsed += newString;
       logParsed += '\'';
       addLog(LOG_LEVEL_DEBUG_DEV, logParsed);
     }
+#endif
   }
   checkRAM(F("transformValue2"));
 }
@@ -1968,7 +1981,7 @@ float apply_operator(char op, float first, float second)
     case '/':
       return first / second;
     case '%':
-      return round(first) % round(second);
+      return static_cast<int>(round(first)) % static_cast<int>(round(second));
     case '^':
       return pow(first, second);
     default:
@@ -2081,9 +2094,10 @@ unsigned int op_arg_count(const char c)
 
 int Calculate(const char *input, float* result)
 {
+  #define TOKEN_LENGTH 25
   checkRAM(F("Calculate"));
   const char *strpos = input, *strend = input + strlen(input);
-  char token[25];
+  char token[TOKEN_LENGTH];
   char c, oc, *TokenPos = token;
   char stack[32];       // operator stack
   unsigned int sl = 0;  // stack length
@@ -2101,6 +2115,7 @@ int Calculate(const char *input, float* result)
 
   while (strpos < strend)
   {
+	  if ((TokenPos - &token[0]) >= (TOKEN_LENGTH - 1)) return CALCULATE_ERROR_STACK_OVERFLOW;
     // read one token from the input stream
     oc = c;
     c = *strpos;
@@ -2120,7 +2135,7 @@ int Calculate(const char *input, float* result)
         error = RPNCalculate(token);
         TokenPos = token;
         if (error)return error;
-        while (sl > 0)
+        while (sl > 0 && sl < 31)
         {
           sc = stack[sl - 1];
           // While there is an operator token, op2, at the top of the stack
@@ -2149,6 +2164,7 @@ int Calculate(const char *input, float* result)
       // If the token is a left parenthesis, then push it onto the stack.
       else if (c == '(')
       {
+		if (sl >= 32) return CALCULATE_ERROR_STACK_OVERFLOW;
         stack[sl] = c;
         ++sl;
       }
@@ -2164,6 +2180,7 @@ int Calculate(const char *input, float* result)
           error = RPNCalculate(token);
           TokenPos = token;
           if (error)return error;
+          if (sl > 32) return CALCULATE_ERROR_STACK_OVERFLOW;
           sc = stack[sl - 1];
           if (sc == '(')
           {
@@ -2185,7 +2202,8 @@ int Calculate(const char *input, float* result)
         sl--;
 
         // If the token at the top of the stack is a function token, pop it onto the token queue.
-        if (sl > 0)
+		// FIXME TD-er: This sc value is never used, it is re-assigned a new value before it is being checked.
+        if (sl > 0 && sl < 32)
           sc = stack[sl - 1];
 
       }
@@ -2263,7 +2281,9 @@ int CalculateParam(const char *TmpStr) {
           log += round(param);
           addLog(LOG_LEVEL_ERROR, log);
         }
-      } else {
+      }
+#ifndef BUILD_NO_DEBUG
+        else {
       if (loglevelActiveFor(LOG_LEVEL_DEBUG)) {
         String log = F("CALCULATE PARAM: ");
         log += TmpStr;
@@ -2272,6 +2292,7 @@ int CalculateParam(const char *TmpStr) {
         addLog(LOG_LEVEL_DEBUG, log);
       }
     }
+#endif
     returnValue=round(param); //return integer only as it's valid only for device and task id
   }
   return returnValue;
@@ -2279,13 +2300,14 @@ int CalculateParam(const char *TmpStr) {
 
 void SendValueLogger(byte TaskIndex)
 {
+#if !defined(BUILD_NO_DEBUG) || defined(FEATURE_SD)
   bool featureSD = false;
   #ifdef FEATURE_SD
     featureSD = true;
   #endif
-
-  String logger;
+  
   if (featureSD || loglevelActiveFor(LOG_LEVEL_DEBUG)) {
+    String logger;
     LoadTaskSettings(TaskIndex);
     byte DeviceIndex = getDeviceIndex(Settings.TaskDeviceNumber[TaskIndex]);
     for (byte varNr = 0; varNr < Device[DeviceIndex].ValueCount; varNr++)
@@ -2306,6 +2328,7 @@ void SendValueLogger(byte TaskIndex)
 
     addLog(LOG_LEVEL_DEBUG, logger);
   }
+#endif
 
 #ifdef FEATURE_SD
   String filename = F("VALUES.CSV");
@@ -2378,6 +2401,7 @@ class RamTracker{
        if (writePtr >= TRACEENTRIES) writePtr=0;          // inc write pointer and wrap around too.
     };
    void getTraceBuffer(){                                // return giant strings, one line per trace. Add stremToWeb method to avoid large strings.
+#ifndef BUILD_NO_DEBUG
       if (loglevelActiveFor(LOG_LEVEL_DEBUG_DEV)) {
         String retval="Memtrace\n";
         for (int i = 0; i< TRACES; i++){
@@ -2390,6 +2414,7 @@ class RamTracker{
           retval="";
         }
       }
+#endif
     }
 }myRamTracker;                                              // instantiate class. (is global now)
 
@@ -2440,7 +2465,7 @@ void checkRAM( String &a ) {
 
 //#ifdef PLUGIN_BUILD_TESTING
 
-#define isdigit(n) (n >= '0' && n <= '9')
+//#define isdigit(n) (n >= '0' && n <= '9') //Conflicts with ArduJson 6+, when this lib is used there is no need for this macro
 
 /********************************************************************************************\
   Generate a tone of specified frequency on pin
@@ -2650,6 +2675,7 @@ void ArduinoOTAInit()
 
   ArduinoOTA.onStart([]() {
       serialPrintln(F("OTA  : Start upload"));
+      ArduinoOTAtriggered = true;
       SPIFFS.end(); //important, otherwise it fails
   });
 
@@ -2662,6 +2688,7 @@ void ArduinoOTAInit()
       reboot();
   });
   ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    if (Settings.UseSerial)
       Serial.printf("OTA  : Progress %u%%\r", (progress / (total / 100)));
   });
 
@@ -2694,12 +2721,11 @@ int calc_CRC16(const String& text) {
 int calc_CRC16(const char *ptr, int count)
 {
     int  crc;
-    char i;
     crc = 0;
     while (--count >= 0)
     {
         crc = crc ^ (int) *ptr++ << 8;
-        i = 8;
+        char i = 8;
         do
         {
             if (crc & 0x8000)
@@ -2710,6 +2736,25 @@ int calc_CRC16(const char *ptr, int count)
     }
     return crc;
 }
+
+uint32_t calc_CRC32(const uint8_t *data, size_t length) {
+  uint32_t crc = 0xffffffff;
+  while (length--) {
+    uint8_t c = *data++;
+    for (uint32_t i = 0x80; i > 0; i >>= 1) {
+      bool bit = crc & 0x80000000;
+      if (c & i) {
+        bit = !bit;
+      }
+      crc <<= 1;
+      if (bit) {
+        crc ^= 0x04c11db7;
+      }
+    }
+  }
+  return crc;
+}
+
 
 // Compute the dew point temperature, given temperature and humidity (temp in Celcius)
 // Formula: http://www.ajdesigner.com/phphumidity/dewpoint_equation_dewpoint_temperature.php
@@ -2726,3 +2771,143 @@ float compute_humidity_from_dewpoint(float temperature, float dew_temperature) {
   return 100.0 * pow((112.0 - 0.1 * temperature + dew_temperature) /
                      (112.0 + 0.9 * temperature), 8);
 }
+<<<<<<< HEAD
+=======
+
+/**********************************************************
+*                                                         *
+* Helper Functions for managing the status data structure *
+*                                                         *
+**********************************************************/
+
+void savePortStatus(uint32_t key, struct portStatusStruct &tempStatus) {
+  // FIXME TD-er: task and monitor are unsigned, should we only check for == ????
+  if (tempStatus.task<=0 && tempStatus.monitor<=0 && tempStatus.command<=0)
+    globalMapPortStatus.erase(key);
+  else
+    globalMapPortStatus[key] = tempStatus;
+}
+
+bool existPortStatus(uint32_t key) {
+  bool retValue = false;
+  //check if KEY exists:
+  std::map<uint32_t,portStatusStruct>::iterator it;
+  it = globalMapPortStatus.find(key);
+  if (it != globalMapPortStatus.end()) {  //if KEY exists...
+    retValue = true;
+  }
+  return retValue;
+}
+
+void removeTaskFromPort(uint32_t key) {
+  if (existPortStatus(key)) {
+    (globalMapPortStatus[key].task > 0) ? globalMapPortStatus[key].task-- : globalMapPortStatus[key].task = 0;
+    if (globalMapPortStatus[key].task<=0 && globalMapPortStatus[key].monitor<=0 && globalMapPortStatus[key].command<=0&& globalMapPortStatus[key].init<=0)
+      globalMapPortStatus.erase(key);
+  }
+}
+
+void removeMonitorFromPort(uint32_t key) {
+  if (existPortStatus(key)) {
+    globalMapPortStatus[key].monitor=0;
+    if (globalMapPortStatus[key].task<=0 && globalMapPortStatus[key].monitor<=0 && globalMapPortStatus[key].command<=0&& globalMapPortStatus[key].init<=0)
+      globalMapPortStatus.erase(key);
+  }
+}
+
+void addMonitorToPort(uint32_t key) {
+  globalMapPortStatus[key].monitor=1;
+}
+
+uint32_t createKey(uint16_t pluginNumber, uint16_t portNumber) {
+  return (uint32_t) pluginNumber << 16 | portNumber;
+}
+
+uint16_t getPluginFromKey(uint32_t key) {
+  return (uint16_t)(key >> 16);
+}
+
+uint16_t getPortFromKey(uint32_t key) {
+  return (uint16_t)(key);
+}
+
+//#######################################################################################################
+//############################ quite acurate but slow color converter####################################
+//#######################################################################################################
+// uses H 0..360 S 1..100 I/V 1..100 (according to homie convention)
+// Source https://blog.saikoled.com/post/44677718712/how-to-convert-from-hsi-to-rgb-white
+
+void HSV2RGB(float H, float S, float I, int rgb[3]) {
+  int r, g, b;
+  H = fmod(H,360); // cycle H around to 0-360 degrees
+  H = 3.14159*H/(float)180; // Convert to radians.
+  S = S / 100;
+  S = S>0?(S<1?S:1):0; // clamp S and I to interval [0,1]
+  I = I / 100;
+  I = I>0?(I<1?I:1):0;
+
+  // Math! Thanks in part to Kyle Miller.
+  if(H < 2.09439) {
+    r = 255*I/3*(1+S*cos(H)/cos(1.047196667-H));
+    g = 255*I/3*(1+S*(1-cos(H)/cos(1.047196667-H)));
+    b = 255*I/3*(1-S);
+  } else if(H < 4.188787) {
+    H = H - 2.09439;
+    g = 255*I/3*(1+S*cos(H)/cos(1.047196667-H));
+    b = 255*I/3*(1+S*(1-cos(H)/cos(1.047196667-H)));
+    r = 255*I/3*(1-S);
+  } else {
+    H = H - 4.188787;
+    b = 255*I/3*(1+S*cos(H)/cos(1.047196667-H));
+    r = 255*I/3*(1+S*(1-cos(H)/cos(1.047196667-H)));
+    g = 255*I/3*(1-S);
+  }
+  rgb[0]=r;
+  rgb[1]=g;
+  rgb[2]=b;
+}
+
+// uses H 0..360 S 1..100 I/V 1..100 (according to homie convention)
+// Source https://blog.saikoled.com/post/44677718712/how-to-convert-from-hsi-to-rgb-white
+
+void HSV2RGBW(float H, float S, float I, int rgbw[4]) {
+  int r, g, b, w;
+  float cos_h, cos_1047_h;
+  H = fmod(H,360); // cycle H around to 0-360 degrees
+  H = 3.14159*H/(float)180; // Convert to radians.
+  S = S / 100;
+  S = S>0?(S<1?S:1):0; // clamp S and I to interval [0,1]
+  I = I / 100;
+  I = I>0?(I<1?I:1):0;
+
+  if(H < 2.09439) {
+    cos_h = cos(H);
+    cos_1047_h = cos(1.047196667-H);
+    r = S*255*I/3*(1+cos_h/cos_1047_h);
+    g = S*255*I/3*(1+(1-cos_h/cos_1047_h));
+    b = 0;
+    w = 255*(1-S)*I;
+  } else if(H < 4.188787) {
+    H = H - 2.09439;
+    cos_h = cos(H);
+    cos_1047_h = cos(1.047196667-H);
+    g = S*255*I/3*(1+cos_h/cos_1047_h);
+    b = S*255*I/3*(1+(1-cos_h/cos_1047_h));
+    r = 0;
+    w = 255*(1-S)*I;
+  } else {
+    H = H - 4.188787;
+    cos_h = cos(H);
+    cos_1047_h = cos(1.047196667-H);
+    b = S*255*I/3*(1+cos_h/cos_1047_h);
+    r = S*255*I/3*(1+(1-cos_h/cos_1047_h));
+    g = 0;
+    w = 255*(1-S)*I;
+  }
+
+  rgbw[0]=r;
+  rgbw[1]=g;
+  rgbw[2]=b;
+  rgbw[3]=w;
+}
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309

@@ -1,18 +1,15 @@
 // Copyright 2017 David Conran
 
+// Send & decode support for Phillips RC-MM added by David Conran
+
+// Supports:
+//   Brand: Microsoft,  Model: XBOX 360
+
 #include <algorithm>
 #include "IRrecv.h"
 #include "IRsend.h"
 #include "IRtimer.h"
 #include "IRutils.h"
-
-//                RRRRRR   CCCCC          MM    MM MM    MM
-//                RR   RR CC    C         MMM  MMM MMM  MMM
-//                RRRRRR  CC       _____  MM MM MM MM MM MM
-//                RR  RR  CC    C         MM    MM MM    MM
-//                RR   RR  CCCCC          MM    MM MM    MM
-
-// Send & decode support for RC-MM added by David Conran
 
 // Constants
 // Ref:
@@ -144,11 +141,9 @@ bool IRrecv::decodeRCMM(decode_results *results, uint16_t nbits, bool strict) {
     data <<= 2;
     // Use non-default tolerance & excess for matching some of the spaces as the
     // defaults are too generous and causes mis-matches in some cases.
-    if (match(results->rawbuf[offset], kRcmmBitSpace0Ticks * s_tick,
-              kTolerance))
+    if (match(results->rawbuf[offset], kRcmmBitSpace0Ticks * s_tick))
       data += 0;
-    else if (match(results->rawbuf[offset], kRcmmBitSpace1Ticks * s_tick,
-                   kTolerance))
+    else if (match(results->rawbuf[offset], kRcmmBitSpace1Ticks * s_tick))
       data += 1;
     else if (match(results->rawbuf[offset], kRcmmBitSpace2Ticks * s_tick,
                    kRcmmTolerance))

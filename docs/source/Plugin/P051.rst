@@ -19,11 +19,22 @@ GitHub: |P051_github|_
 
 Maintainer: |P051_maintainer|
 
+Used libraries: |P051_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P051_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P051_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P051_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

@@ -19,11 +19,22 @@ GitHub: |P040_github|_
 
 Maintainer: |P040_maintainer|
 
+Used libraries: |P040_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P040_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P040_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P040_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

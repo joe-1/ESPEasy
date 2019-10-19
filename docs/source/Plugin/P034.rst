@@ -19,11 +19,22 @@ GitHub: |P034_github|_
 
 Maintainer: |P034_maintainer|
 
+Used libraries: |P034_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P034_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P034_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P034_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

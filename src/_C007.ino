@@ -7,9 +7,9 @@
 #define CPLUGIN_ID_007         7
 #define CPLUGIN_NAME_007       "Emoncms"
 
-boolean CPlugin_007(byte function, struct EventStruct *event, String& string)
+bool CPlugin_007(byte function, struct EventStruct *event, String& string)
 {
-  boolean success = false;
+  bool success = false;
 
   switch (function)
   {
@@ -40,6 +40,10 @@ boolean CPlugin_007(byte function, struct EventStruct *event, String& string)
 
     case CPLUGIN_PROTOCOL_SEND:
       {
+        if (event->sensorType == SENSOR_TYPE_STRING) {
+          addLog(LOG_LEVEL_ERROR, F("emoncms : No support for SENSOR_TYPE_STRING"));
+          break;
+        }
         const byte valueCount = getValueCountFromSensorType(event->sensorType);
         if (valueCount == 0 || valueCount > 3) {
           addLog(LOG_LEVEL_ERROR, F("emoncms : Unknown sensortype or too many sensor values"));
@@ -50,9 +54,19 @@ boolean CPlugin_007(byte function, struct EventStruct *event, String& string)
         break;
       }
 
+    case CPLUGIN_FLUSH:
+      {
+        process_c007_delay_queue();
+        delay(0);
+        break;
+      }
+
+
   }
   return success;
 }
+
+bool do_process_c007_delay_queue(int controller_number, const C007_queue_element& element, ControllerSettingsStruct& ControllerSettings);
 
 bool do_process_c007_delay_queue(int controller_number, const C007_queue_element& element, ControllerSettingsStruct& ControllerSettings) {
   WiFiClient client;

@@ -19,11 +19,22 @@ GitHub: |P045_github|_
 
 Maintainer: |P045_maintainer|
 
+Used libraries: |P045_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P045_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P045_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P045_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

@@ -5,7 +5,7 @@
 * TL;DR: The IR LED needs to be driven by a transistor for a good result.
 *
 * Suggested circuit:
-*     https://github.com/markszabo/IRremoteESP8266/wiki#ir-sending
+*     https://github.com/crankyoldgit/IRremoteESP8266/wiki#ir-sending
 *
 * Common mistakes & tips:
 *   * Don't just connect the IR LED directly to the pin, it won't
@@ -23,18 +23,16 @@
 *     for your first time. e.g. ESP-12 etc.
 */
 
-#ifndef UNIT_TEST
 #include <Arduino.h>
-#endif
 #include <IRremoteESP8266.h>
 #include <IRsend.h>
 #include <ir_Trotec.h>
 
 const uint16_t kIrLed = 4;  // ESP8266 GPIO pin to use. Recommended: 4 (D2).
-IRTrotecESP trotecir(kIrLed);  // Set the GPIO to be used for sending messages.
+IRTrotecESP ac(kIrLed);  // Set the GPIO to be used for sending messages.
 
 void setup() {
-  trotecir.begin();
+  ac.begin();
   Serial.begin(115200);
 }
 
@@ -42,14 +40,14 @@ void loop() {
   Serial.println("Sending...");
 
   // Set up what we want to send. See ir_Trotec.cpp for all the options.
-  trotecir.setPower(true);
-  trotecir.setSpeed(TROTEC_FAN_LOW);
-  trotecir.setMode(TROTEC_COOL);
-  trotecir.setTemp(25);
+  ac.setPower(true);
+  ac.setSpeed(kTrotecFanLow);
+  ac.setMode(kTrotecCool);
+  ac.setTemp(25);
 
   // Now send the IR signal.
 #if SEND_TROTEC
-  trotecir.send();
+  ac.send();
 #else  // SEND_TROTEC
   Serial.println("Can't send because SEND_TROTEC has been disabled.");
 #endif  // SEND_TROTEC

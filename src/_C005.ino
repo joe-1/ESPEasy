@@ -1,15 +1,15 @@
 #ifdef USES_C005
 //#######################################################################################################
-//########################### Controller Plugin 005: OpenHAB MQTT #######################################
+//################### Controller Plugin 005: Home Assistant (openHAB) MQTT ##############################
 //#######################################################################################################
 
 #define CPLUGIN_005
 #define CPLUGIN_ID_005         5
-#define CPLUGIN_NAME_005       "OpenHAB MQTT"
+#define CPLUGIN_NAME_005       "Home Assistant (openHAB) MQTT"
 
-boolean CPlugin_005(byte function, struct EventStruct *event, String& string)
+bool CPlugin_005(byte function, struct EventStruct *event, String& string)
 {
-  boolean success = false;
+  bool success = false;
 
   switch (function)
   {
@@ -41,8 +41,8 @@ boolean CPlugin_005(byte function, struct EventStruct *event, String& string)
 
     case CPLUGIN_PROTOCOL_TEMPLATE:
       {
-        event->String1 = F("/%sysname%/#");
-        event->String2 = F("/%sysname%/%tskname%/%valname%");
+        event->String1 = F("%sysname%/#");
+        event->String2 = F("%sysname%/%tskname%/%valname%");
         break;
       }
 
@@ -100,8 +100,10 @@ boolean CPlugin_005(byte function, struct EventStruct *event, String& string)
         }
         statusLED(true);
 
-        if (ExtraTaskSettings.TaskIndex != event->TaskIndex)
-          PluginCall(PLUGIN_GET_DEVICEVALUENAMES, event, dummyString);
+        if (ExtraTaskSettings.TaskIndex != event->TaskIndex) {
+          String dummy;
+          PluginCall(PLUGIN_GET_DEVICEVALUENAMES, event, dummy);
+        }
 
         String pubname = ControllerSettings.Publish;
         parseControllerVariables(pubname, event, false);
@@ -116,14 +118,24 @@ boolean CPlugin_005(byte function, struct EventStruct *event, String& string)
           value = formatUserVarNoCheck(event, x);
 
           MQTTpublish(event->ControllerIndex, tmppubname.c_str(), value.c_str(), Settings.MQTTRetainFlag);
+#ifndef BUILD_NO_DEBUG
           String log = F("MQTT : ");
           log += tmppubname;
           log += ' ';
           log += value;
           addLog(LOG_LEVEL_DEBUG, log);
+#endif
         }
         break;
       }
+
+    case CPLUGIN_FLUSH:
+      {
+        processMQTTdelayQueue();
+        delay(0);
+        break;
+      }
+
   }
 
   return success;

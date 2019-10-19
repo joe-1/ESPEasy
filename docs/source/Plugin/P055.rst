@@ -19,11 +19,22 @@ GitHub: |P055_github|_
 
 Maintainer: |P055_maintainer|
 
+Used libraries: |P055_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P055_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P055_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P055_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

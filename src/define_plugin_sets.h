@@ -1,3 +1,5 @@
+#include "ESPEasy_common.h"
+
 /*
 #################################################
  This is the place where plugins are registered
@@ -22,11 +24,40 @@ To create/register a plugin, you have to :
 
 
 
+
+
+#ifdef MEMORY_ANALYSIS
+  #ifndef WEBSERVER_RULES_DEBUG
+    #define WEBSERVER_RULES_DEBUG 0
+  #endif
+  #ifdef MQTT_ONLY
+    #define USES_C002   // Domoticz MQTT
+    #define USES_C005   // Home Assistant (openHAB) MQTT
+    #define USES_C006   // PiDome MQTT
+    #define USES_C014   // homie 3 & 4dev MQTT
+    #define USES_P037   // MQTTImport
+  #endif
+#endif
+
+
 /******************************************************************************\
- * BUILD Configs *******************************************************************
+ * Available options **********************************************************
 \******************************************************************************/
+#if defined(CORE_POST_2_5_0) && !defined(MEMORY_ANALYSIS) && !defined(USE_CUSTOM_H)
+    #ifndef USE_SETTINGS_ARCHIVE
+    // FIXME TD-er: Disabled for now, to reduce binary size
+//        #define USE_SETTINGS_ARCHIVE
+    #endif // USE_SETTINGS_ARCHIVE
+#endif
+
+#if defined(USE_SETTINGS_ARCHIVE) && defined(FORCE_PRE_2_5_0)
+  #undef USE_SETTINGS_ARCHIVE
+#endif
 
 
+/******************************************************************************\
+ * BUILD Configs **************************************************************
+\******************************************************************************/
 
 // IR library is large, so make a separate build including stable plugins and IR.
 #ifdef PLUGIN_BUILD_DEV_IR
@@ -39,9 +70,28 @@ To create/register a plugin, you have to :
     #define PLUGIN_BUILD_IR
 #endif
 
+#ifdef PLUGIN_BUILD_MINIMAL_IR
+    #define PLUGIN_BUILD_MINIMAL_OTA
+    #define PLUGIN_DESCR  "Minimal, IR"
+    #define PLUGIN_BUILD_IR
+#endif
+
+#ifdef PLUGIN_BUILD_MINIMAL_IRext
+    #define PLUGIN_BUILD_MINIMAL_OTA
+    #define PLUGIN_DESCR  "Minimal, IR with AC"
+    #define PLUGIN_BUILD_IR_EXTENDED
+#endif
+
 #ifdef PLUGIN_BUILD_NORMAL_IR
     #define PLUGIN_BUILD_NORMAL     // add stable
+    #define PLUGIN_DESCR  "Normal, IR"
     #define PLUGIN_BUILD_IR
+#endif
+
+#ifdef PLUGIN_BUILD_NORMAL_IRext
+    #define PLUGIN_BUILD_NORMAL     // add stable
+    #define PLUGIN_DESCR  "Normal, IR with AC"
+    #define PLUGIN_BUILD_IR_EXTENDED
 #endif
 
 #ifdef PLUGIN_BUILD_DEV
@@ -68,24 +118,42 @@ To create/register a plugin, you have to :
     #define  PLUGIN_SET_STABLE
     #define  CONTROLLER_SET_STABLE
     #define  NOTIFIER_SET_STABLE
+
+    #ifndef BUILD_NO_DEBUG
+      #define BUILD_NO_DEBUG
+    #endif
 #endif
 
 #ifdef PLUGIN_BUILD_MINIMAL_OTA
-    #define PLUGIN_DESCR  "Minimal 1M OTA"
+    #ifndef PLUGIN_DESCR
+      #define PLUGIN_DESCR  "Minimal 1M OTA"
+    #endif
 
     #define CONTROLLER_SET_NONE
 
+    #define BUILD_MINIMAL_OTA
+    #ifndef BUILD_NO_DEBUG
+      #define BUILD_NO_DEBUG
+    #endif
+
     #define USES_C001   // Domoticz HTTP
     #define USES_C002   // Domoticz MQTT
-    #define USES_C005   // OpenHAB MQTT
+    #define USES_C005   // Home Assistant (openHAB) MQTT
 //    #define USES_C006   // PiDome MQTT
     #define USES_C008   // Generic HTTP
     #define USES_C009   // FHEM HTTP
 //    #define USES_C010   // Generic UDP
     #define USES_C013   // ESPEasy P2P network
 
-    #define NOTIFIER_SET_STABLE
+//    #define NOTIFIER_SET_STABLE
+    #define NOTIFIER_SET_NONE
+
     #define PLUGIN_SET_NONE
+
+    #ifdef USE_SETTINGS_ARCHIVE
+        #undef USE_SETTINGS_ARCHIVE
+    #endif // USE_SETTINGS_ARCHIVE
+
 
     #ifndef USES_P001
         #define USES_P001   // switch
@@ -107,8 +175,32 @@ To create/register a plugin, you have to :
 //        #define USES_P005   // DHT
     #endif
 
+    #ifdef USE_SERVO
+      #undef USE_SERVO
+    #endif
 #endif
 
+
+#if !defined(BUILD_MINIMAL_OTA) && !defined(MEMORY_ANALYSIS)
+  #ifndef WEBSERVER_TIMINGSTATS
+    #define WEBSERVER_TIMINGSTATS
+  #endif
+  #ifndef WEBSERVER_SYSVARS
+    #define WEBSERVER_SYSVARS
+  #endif
+  #ifndef WEBSERVER_NEW_UI
+    #define WEBSERVER_NEW_UI
+  #endif
+#endif
+
+
+
+#ifdef BUILD_NO_DEBUG
+    #ifdef WEBSERVER_RULES_DEBUG
+        #undef WEBSERVER_RULES_DEBUG
+    #endif
+    #define WEBSERVER_RULES_DEBUG 0
+#endif
 
 
 /******************************************************************************\
@@ -124,6 +216,29 @@ To create/register a plugin, you have to :
     #define USES_P035      // IRTX
 #endif
 
+#ifdef PLUGIN_BUILD_IR_EXTENDED
+    #ifndef PLUGIN_DESCR
+        #define PLUGIN_DESCR  "IR_Extended"
+    #endif // PLUGIN_DESCR
+    #define USES_P016      // IR
+    #define USES_P035      // IRTX
+    // The following define is needed for extended decoding of A/C Messages and or using standardised common arguments for controlling all deeply supported A/C units
+    #define P016_P035_Extended_AC
+    #define USES_P088      // ToniA IR plugin
+    #define PLUGIN_SET_ONLY_SWITCH
+    #define USES_P029      // Output - Domoticz MQTT Helper
+    #define PLUGIN_SET_ONLY_TEMP_HUM
+#endif
+
+#ifdef PLUGIN_BUILD_IR_EXTENDED_NO_RX
+    #ifndef PLUGIN_DESCR
+        #define PLUGIN_DESCR  "IR_Extended, no IR RX"
+    #endif // PLUGIN_DESCR
+    #define USES_P035      // IRTX
+    // The following define is needed for extended decoding of A/C Messages and or using standardised common arguments for controlling all deeply supported A/C units
+    #define P016_P035_Extended_AC
+    #define USES_P088      //ToniA IR plugin
+#endif
 
 /******************************************************************************\
  * Devices ********************************************************************
@@ -289,7 +404,7 @@ To create/register a plugin, you have to :
         #define USES_P001   // switch
     #endif
     #ifndef USES_P003
-        #define USES_P003   // pulse
+//        #define USES_P003   // pulse
     #endif
     #ifndef USES_P026
       #define USES_P026   // SysInfo
@@ -421,6 +536,8 @@ To create/register a plugin, you have to :
 
 // STABLE #####################################
 #ifdef PLUGIN_SET_STABLE
+    #define USE_SERVO
+
     #define USES_P001   // Switch
     #define USES_P002   // ADC
     #define USES_P003   // Pulse
@@ -453,7 +570,7 @@ To create/register a plugin, you have to :
     #define USES_P028   // BME280
     #define USES_P029   // Output
 
-    #define USES_P030   // BMP280
+//    #define USES_P030   // BMP280   (Made obsolete, now BME280 can handle both)
     #define USES_P031   // SHT1X
     #define USES_P032   // MS5611
     #define USES_P033   // Dummy
@@ -462,10 +579,12 @@ To create/register a plugin, you have to :
     #define USES_P036   // FrameOLED
     #define USES_P037   // MQTTImport
     #define USES_P038   // NeoPixel
-    #define USES_P039   // ID12
+    #define USES_P039   // Environment - Thermocouple
 
-    #define USES_P041   // NeoClock
-    #define USES_P042   // Candle
+    #define USES_P040   // RFID - ID12LA/RDM6300
+    // FIXME TD-er: Disabled NeoClock and Candle plugin to make builds fit in max bin size.
+//    #define USES_P041   // NeoClock
+//    #define USES_P042   // Candle
     #define USES_P043   // ClkOutput
     #define USES_P044   // P1WifiGateway
 
@@ -476,6 +595,8 @@ To create/register a plugin, you have to :
     #define USES_P059   // Encoder
 
     #define USES_P063   // TTP229_KeyPad
+    #define USES_P073   // 7DG
+    #define USES_P079   // Wemos Motoshield
 #endif
 
 
@@ -484,7 +605,7 @@ To create/register a plugin, you have to :
     #define USES_C002   // Domoticz MQTT
     #define USES_C003   // Nodo telnet
     #define USES_C004   // ThingSpeak
-    #define USES_C005   // OpenHAB MQTT
+    #define USES_C005   // Home Assistant (openHAB) MQTT
     #define USES_C006   // PiDome MQTT
     #define USES_C007   // Emoncms
     #define USES_C008   // Generic HTTP
@@ -497,6 +618,10 @@ To create/register a plugin, you have to :
 #ifdef NOTIFIER_SET_STABLE
     #define USES_N001   // Email
     #define USES_N002   // Buzzer
+
+    #ifdef NOTIFIER_SET_NONE
+      #undef NOTIFIER_SET_NONE
+    #endif
 #endif
 
 
@@ -529,20 +654,30 @@ To create/register a plugin, you have to :
     #define USES_P070   // NeoPixel_Clock
     #define USES_P071   // Kamstrup401
     #define USES_P072   // HDC1080
-    #define USES_P073   // 7DG
     #define USES_P074   // TSL2561
     #define USES_P075   // Nextion
-
+    #define USES_P076   // HWL8012   in POW r1
+    // Needs CSE7766 Energy sensor, via Serial RXD 4800 baud 8E1 (GPIO1), TXD (GPIO3)
+    #define USES_P077	  // CSE7766   in POW R2
     #define USES_P078   // Eastron Modbus Energy meters
-    #define USES_P079   // Wemos Motoshield
     #define USES_P080   // iButton Sensor  DS1990A
     #define USES_P081   // Cron
+    #define USES_P082   // GPS
+    #define USES_P083   // SGP30
+    #define USES_P084   // VEML6070
+    #define USES_P085   // AcuDC24x
+    #define USES_P086   // Receiving values according Homie convention. Works together with C014 Homie controller
+    //#define USES_P087   // Serial Proxy
 #endif
 
 
 #ifdef CONTROLLER_SET_TESTING
     #define USES_C011   // Generic HTTP Advanced
     #define USES_C012   // Blynk HTTP
+    #define USES_C014   // homie 3 & 4dev MQTT
+    //#define USES_C015   // Blynk
+    #define USES_C017   // Zabbix
+    // #define USES_C018 // TTN RN2483
 #endif
 
 
@@ -578,7 +713,7 @@ To create/register a plugin, you have to :
 	//#define USES_P112	// RFTX
 	#define USES_P113	// SI1145
 	#define USES_P114	// DSM501
-	#define USES_P115	// HeatpumpIR
+	//#define USES_P115	// HeatpumpIR - P088 in the main repo.
 	#define USES_P116	// ID12
 	#define USES_P117	// LW12FC
 	//#define USES_P117	// Neopixels
@@ -627,36 +762,105 @@ To create/register a plugin, you have to :
 
 
 #ifdef CONTROLLER_SET_EXPERIMENTAL
+  //#define USES_C016   // Cache controller
+  //#define USES_C018   // TTN/RN2483
 #endif
 
 
 #ifdef NOTIFIER_SET_EXPERIMENTAL
 #endif
 
+
+
 /******************************************************************************\
  * Remove incompatible plugins ************************************************
 \******************************************************************************/
 #ifdef PLUGIN_SET_TEST_ESP32
   #undef USES_P010   // BH1750          (doesn't work yet on ESP32)
-  #undef USES_P049   // MHZ19           (doesn't work yet on ESP32)
+//  #undef USES_P049   // MHZ19           (doesn't work yet on ESP32)
 
-  #undef USES_P052   // SenseAir        (doesn't work yet on ESP32)
-  #undef USES_P053   // PMSx003
+//  #undef USES_P052   // SenseAir        (doesn't work yet on ESP32)
+//  #undef USES_P053   // PMSx003
 
-  #undef USES_P056   // SDS011-Dust     (doesn't work yet on ESP32)
-  #undef USES_P065   // DRF0299
-  #undef USES_P071   // Kamstrup401
+//  #undef USES_P056   // SDS011-Dust     (doesn't work yet on ESP32)
+//  #undef USES_P065   // DRF0299
+//  #undef USES_P071   // Kamstrup401
   #undef USES_P075   // Nextion
-  #undef USES_P078   // Eastron Modbus Energy meters (doesn't work yet on ESP32)
+//  #undef USES_P078   // Eastron Modbus Energy meters (doesn't work yet on ESP32)
+//  #undef USES_P082   // GPS
+
+  #ifdef USE_SERVO
+    #undef USE_SERVO
+  #endif
+#endif
+
+
+#ifdef ARDUINO_ESP8266_RELEASE_2_3_0
+  #ifdef USES_P081
+    #undef USES_P081   // Cron
+  #endif
+
+
 #endif
 
 
 /******************************************************************************\
  * Libraries dependencies *****************************************************
 \******************************************************************************/
+#if defined(USES_P049) || defined(USES_P052) || defined(USES_P053) || defined(USES_P056) || defined(USES_P071) || defined(USES_P075) || defined(USES_P082) || defined(USES_P087)
+// At least one plugin uses serial.
+#else
+  // No plugin uses serial, so make sure software serial is not included.
+  #define DISABLE_SOFTWARE_SERIAL
+#endif
+
 
 /*
 #if defined(USES_P00x) || defined(USES_P00y)
 #include <the_required_lib.h>
 #endif
 */
+
+
+#if defined(USES_C018)
+  #define USES_PACKED_RAW_DATA
+#endif
+
+#if defined(USES_P085) || defined (USES_P052) || defined(USES_P078)
+  #define USES_MODBUS
+#endif
+
+#if defined(USES_C001) || defined (USES_C002) || defined(USES_P029)
+  #define USES_DOMOTICZ
+#endif
+
+#if defined(USES_C002) || defined (USES_C005) || defined(USES_C006) || defined(USES_C014) || defined(USES_P037)
+  #define USES_MQTT
+#endif
+
+#if defined(USES_C012) || defined (USES_C015)
+  #define USES_BLYNK
+#endif
+
+
+
+#ifdef USES_MQTT
+// MQTT_MAX_PACKET_SIZE : Maximum packet size
+#ifndef MQTT_MAX_PACKET_SIZE
+  #define MQTT_MAX_PACKET_SIZE 1024 // Is also used in PubSubClient
+#endif
+#endif //USES_MQTT
+
+
+// Disable Homie plugin for now in the dev build to make it fit.
+#if defined(PLUGIN_BUILD_DEV) && defined(USES_C014)
+  #undef USES_C014
+#endif
+
+
+// Due to size restrictions, disable a few plugins/controllers for 1M builds
+#ifdef SIZE_1M
+  #ifdef USES_C003
+    #undef USES_C003
+  #endif
+#endif

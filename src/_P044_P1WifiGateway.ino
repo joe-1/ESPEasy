@@ -25,7 +25,7 @@
 
 boolean Plugin_044_init = false;
 boolean serialdebug = false;
-char* Plugin_044_serial_buf;
+char* Plugin_044_serial_buf = nullptr;
 unsigned int bytes_read = 0;
 boolean CRCcheck = false;
 unsigned int currCRC = 0;
@@ -33,6 +33,11 @@ int checkI = 0;
 
 WiFiServer *P1GatewayServer = nullptr;
 WiFiClient P1GatewayClient;
+
+// Fixme TD-er: Reverted to old implementation for now.
+// This one has been reverted in https://github.com/letscontrolit/ESPEasy/pull/2352
+// Since both plugins (P020 and P044) are almost identical in handling serial data.
+// However that version of P044 had a number of other fixes which may be very useful anyway.
 
 boolean Plugin_044(byte function, struct EventStruct *event, String& string)
 {
@@ -135,7 +140,7 @@ boolean Plugin_044(byte function, struct EventStruct *event, String& string)
           P1GatewayServer->begin();
 
           if (!Plugin_044_serial_buf)
-            Plugin_044_serial_buf = (char *)malloc(P044_BUFFER_SIZE);
+            Plugin_044_serial_buf = new char[P044_BUFFER_SIZE];
 
           if (Settings.TaskDevicePin1[event->TaskIndex] != -1)
           {
@@ -172,6 +177,9 @@ boolean Plugin_044(byte function, struct EventStruct *event, String& string)
           delete P1GatewayServer;
           P1GatewayServer = NULL;
         }
+        if (Plugin_044_serial_buf) {
+          delete[] Plugin_044_serial_buf;
+        }
         success = true;
         break;
       }
@@ -184,6 +192,7 @@ boolean Plugin_044(byte function, struct EventStruct *event, String& string)
           {
             if (P1GatewayClient) P1GatewayClient.stop();
             P1GatewayClient = P1GatewayServer->available();
+            P1GatewayClient.setTimeout(CONTROLLER_CLIENTTIMEOUT_DFLT);
             addLog(LOG_LEVEL_ERROR, F("P1   : Client connected!"));
           }
 
@@ -208,8 +217,9 @@ boolean Plugin_044(byte function, struct EventStruct *event, String& string)
                 addLog(LOG_LEVEL_ERROR, F("P1   : Error: network buffer full!"));
               }
               net_buf[count] = 0; // before logging as a char array, zero terminate the last position to be safe.
-              char log[P044_NETBUF_SIZE + 40];
+              char log[P044_NETBUF_SIZE + 40] = {0};
               sprintf_P(log, PSTR("P1   : Error: N>: %s"), (char*)net_buf);
+              ZERO_TERMINATE(log);
               addLog(LOG_LEVEL_DEBUG, log);
             }
           }

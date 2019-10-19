@@ -1,5 +1,248 @@
 # Release Notes
 
+## _v2.6.5 (20190828)_
+
+**[Bug Fixes]**
+- IRMQTTServer: Remove duplicate MQTT_CLIMATE from HA discovery (#869)
+- Fujitsu: Ensure `on()` is called in common a/c framework. (#862)
+- Update `strToModel()` (#861)
+- IRMQTTServer: Add missing header file. (#858)
+- IRMQTTServer: Fix a compile error when HTML_PASSWORD_ENABLE is enabled. (#856)
+
+**[Features]**
+- IRrecv: Allow tolerance percentage to be set at run-time. (#865)
+- Basic support for Daikin152 A/C protocol. (#874)
+- Teco: Add light, humid, & save support. (#871)
+- Detailed support for Amcor A/C protocol. (#836, #854)
+- IRMQTTServer: Add ability to report Vcc at the ESP chip. (#845)
+- Gree: Add timer support. (#849)
+- IRac/Mitsubishi A/C: Support wide `swingh_t` mode (#844)
+- IRMQTTServer: Generate protocol and bit size html selects (#838)
+
+**[Misc]**
+- New example code to show how to use the `IRac` class to control A/Cs (#839)
+- Improve/fix `swingh_t::kWide` support (#846)
+- Kelvinator: Optimise code a little to save space. (#843)
+
+
+## _v2.6.4 (20190726)_
+
+**[Bug Fixes]**
+- Fix some swing problems with the Mitsubishi HAVC protocol (#831)
+- Fix parameter ordering for Gree in common a/c code. (#815)
+- Fix parameters for Coolix in IRac::sendAc() (#829)
+- IRMQTTServer: Fix sending >64 bit codes. (#811)
+
+**[Features]**
+- Daikin128: Full detailed support & common a/c support. (#832)
+- Midea: Support native temp units of Celsius & SwingV. (#823)
+- Gree: Support `YBOFB` models and bug fix. (#815)
+- Pioneer: Fix sendPioneer with Pioneer specific timings (#830)
+- Daikin128: Initial support for Daikin 17 Series/BRC52B63 (#828)
+- Coolix: Better `toCommon()` support. (#825)
+- Experimental detailed support for Daikin 176 bits (#816)
+- Add setting of output options to A/C classes. (#808)
+- Add invert flag support to Samsung AC (#807)
+
+**[Misc]**
+- Daikin176: making some change on Daikin176 to work with IRMQTTServer (#826)
+- Reduce duplicate code to save (3K+) space. (#813)
+- Daikin176: Experiment Daikin176bits with IRMQTTServer (#824)
+- Update platformio.ini files for PlatformIO v4.0.0 (#812)
+- Change repo URLs to new location. (#806)
+- Move `htmlEscape()` to the IRutils namespace (#801)
+
+
+## _v2.6.3 (20190704)_
+
+**[Bug Fixes]**
+- IRMQTTServer: REPLAY_DECODED_AC_MESSAGE not working. (#784, #797)
+- ESP32: Ensure `IRrecv`'s GPIO is set to input mode. (#774)
+
+**[Features]**
+- IRMQTTServer: Show available sketch space for OTA uploads. (#795)
+- Experimental detailed support for Electra/AUX protocol (#788)
+- IRMQTTServer: Ability to resend existing climate state via MQTT & HTTP (#784)
+- Daikin160: Add detailed & common a/c support. (#777)
+- Experimental detailed support for Neoclima protocol. (#767)
+- Gree: add WiFi and IFeel bits (#770)
+- Handle A/Cs with toggles better. (#758)
+- IRMQTTServer: Allow sending/receiving climate via JSON over MQTT. (#763)
+
+**[Misc]**
+- Move converting of IR A/C messages out of example code. (#798)
+- Reduce example code size and complexity (#790)
+- Change `ControlSamsungAC` example to not use `sendExtended()` (#792)
+- IRMQTTServer: Add MQTT_CLIMATE_IR_SEND_ON_RESTART compile-time flag. (#784)
+- Refactor A/C's toString()'s to reduce code size. Saves ~3.5k (#782)
+- Add sanity tests for unexpected conditions in IRrecv. (#773)
+- IRMQTTServer: Fixed the HA config documentation (missing '-') (#776)
+- Improve `mkkeywords` tool. (#766)
+- Refactor with generic decode routines in `IRrecv` class. Saves ~7k. (#765)
+
+
+## _v2.6.2 (20190616)_
+
+**[Features]**
+- Initial support for the ESP32 architecture & boards. (#742)
+- Add changable GPIO settings to IRMQTTServer. (#730)
+- IRMQTTServer: Enforce a repeat for all Coolix calls (#752)
+- Basic DAIKIN 160bit send and decode. (#754)
+- Add example code for a Smart(er) IR Repeater. (#740)
+- Enforce Samsung A/C Quiet & Powerful mutual exclusivity.
+
+**[Misc]**
+- IRMQTTServer: Add some memory alloc safety checks. (#749)
+- Move some ToString() functions to IRac.cpp (#748)
+- Increase tolerance value for TCL112AC protocol. (#745)
+- Fix compiler warning in IRutils_test.cpp (#756)
+- Scrape Supported Protocols and generate SupportedProtocols.md (#755)
+- Make supported device info more organised. (#753)
+
+
+## _v2.6.1 (20190609)_
+
+**[Breaking Changes]**
+- Major rework/breaking changes to Argo A/C support. (#705)
+
+**[Bug Fixes]**
+- Correct `set/getQuiet` for Samsung A/C (#736)
+- Add missing `on/off()` to IRCoolixAC class. (#725)
+- Daikin `set/getEye()` uses wrong bit. (#711)
+- IRMQTTServer: Continue to use same Temperature units. (#710)
+- Fixed a bug with `setMode()`/`getMode()` for HAIER_AC. (#705)
+
+**[Features]**
+- Add set/getPowerful for Samsung A/C (#736)
+- Add `calibrate()` to all the A/C classes. (#735)
+- IRMQTTServer: Add sequencing for sending MQTT IR commands. (#723)
+- Add support for Fujitsu AR-REB1E & AR-JW2 remotes. (#718)
+- Add Beta `decodeTrotec()` support. (#719)
+- Add experimental `decodeArgo()` support. (#717)
+- Support for Goodweather A/Cs. (#715)
+- Add `DISABLE_CAPTURE_WHILE_TRANSMITTING` feature to IRMQTTServer. (#713)
+- Support for Lixil Inax Toilet protocol. (#712)
+- Add `set/getWeeklyTimerEnable()` to Daikin (#711)
+- IRMQTTServer: Update Common A/C settings based on received IR messages. (#705)
+- Add day of week to DAIKIN protocol (#699)
+- Add limited support for Sharp A/C (#696)
+- SAMSUNG_AC: Make sure special power mode messages are sent. (#695)
+- Add `set/getPowerful()` (turbo) to DAIKIN216 (#693)
+
+**[Misc]**
+- Add kPeriodOffset for CPU Freq of 160MHz. (#729)
+- Example code for a Dumb IR repeater. (#737)
+- Update swing handling for Fujitsu A/Cs. (#724)
+- Add function to convert `decode_results` to `sendRaw()` array. (#721)
+- Attempt to reduce heap fragmentation from strings. (#707)
+- Update Fujitsu A/C example code to safer settings (#716)
+- Enforce better `const` usage in IRUtils. (#708)
+- Attempt to reduce heap fragmentation by A/C `toString()`s. (#694)
+- Minor changes to DAIKIN216 timings and features. (#693)
+
+
+## _v2.6.0 (20190430)_
+
+**[Bug Fixes]**
+- Fixed problem where LG protocol used wrong duty cycle for repeat. (#687)
+- Fix checksum calculation for Daikin protocols. (#678)
+- Fix the byte array version of sendGree() (#684, #685)
+- Fix artificial vs. real state creation on HaierAC. (#668, #671)
+- Fix issues caused by having `MQTT_ENABLE` set to false. (#677)
+- Fix compile problem when DEBUG is defined. (#673, #674)
+- Fix Minor bug with MQTT_ENABLE False condition (#654)
+
+**[Features]**
+- Experimental support for DAIKIN216 (ARC433B69) (#690)
+- Experimental support for Mitsubishi Heavy Industries A/Cs. (#660, #665, #667)
+- Support more features of TCL A/C (#656)
+- Add LEGO(TM) Power Functions IR protocol. (#655)
+- Add Panasonic AC RKR model & Example (#649)
+- DAIKIN/IRDaikinESP overhaul and add Comfort mode support. (#678)
+  **WARNING**: Previous `sendDaikin()` calls may not work.
+               Please recapture codes or use `kDaikinStateLengthShort` for
+               `nbytes` in those calls.
+- IRMQTTServer: Move MQTT server and other parameters to WifiManager. (#680)
+  **WARNING**: Previous users may need to fully wipe/reset the
+               SPIFFS/WifiManager settings by visiting
+               `http://<your_esp8266's_ip_address>/reset` prior to or
+               after update.
+- Add Wifi filtering options to IRMQTTServer. (#679)
+- Add advanced aircon/climate functionality to IRMQTTServer (#677)
+- Initial prototype of a common interface for all A/Cs. (#664)
+- Improve MQTT topic usage for feedback messages. (#663)
+- Add multiple independent GPIO sending support via MQTT. (#661)
+
+**[Misc]**
+- Adjust kGreeHdrSpace to 4500 (#684, #686)
+- Add Home Assistant mqtt climate instructions. (#682)
+- Implement htmlEscape() to prevent XSS etc. (#681)
+- Add F() Macros (#670)
+- Update Daikin2's Cool mode min temp to 18C (#658)
+- Change per byte bit-order in Electra protocol. (#648)
+- Improve Daikin2 power on/off. (#647)
+
+
+## _v2.5.6 (20190316)_
+
+**[Bug Fixes]**
+- Fix Coolix A/C Class to handle special states better. (#633, #624)
+
+**[Features]**
+- Fix case style for recent A/C protocols. (#631)
+- Update `IRsend::send()` to include all simple protocols. (#629, #628)
+- Experimental basic support for 112 bit TCL AC messages (#627, #619)
+- Add support for TECO AC (#622)
+- Experimental support for Samsung 36 bit protocol (#625, #621)
+
+**[Misc]**
+- Set Coolix to default to 1 repeat. (#637, #636, #624, #439)
+- Set Daikin2 modulation to 36.7kHz. (#635)
+- Refactor IRVestelAC class to use portable code. (#617)
+- Adjust Daikin2 timings and tolerance. (#616, #582)
+
+
+## _v2.5.5 (20190207)_
+
+**[Bug Fixes]**
+- Fix decoding of Samsung A/C Extended messages. (#610)
+- Fix IRMQTTServer example to work with GPIO0 as IR_RX (#608)
+- Fix incorrect #define usage. (#597, #596)
+
+**[Features]**
+- Add deep decoding/construction of Daikin2 messages (#600)
+- Added Old Vestel A/C support (56 Bits) with full functions. (#607)
+
+**[Misc]**
+- Add ControlSamsungAC example code. (#599)
+- Add how to send a state/air-con to IRsendDemo.ino (#594)
+
+
+## _v2.5.4 (20190102)_
+
+**[Features]**
+- Experimental basic support for 39 Byte Daikin A/C (#583)
+- Handle send() repeats in A/C classes. Improve Coolix support. (#580)
+- Add optional RX pin pullup and dump raw messages in IRMQTTServer.ino (#589)
+
+**[Misc]**
+- Make auto_analyse_raw_data.py work with Python3 (#581)
+- Update CI/travis config due to esp8266 core 2.5.0 changes (#591)
+
+
+## _v2.5.3 (20181123)_
+
+**[Features]**
+- Add deep support for the Hitachi 28-Byte A/C Protocol (#563)
+- Deep decoding for Whirlpool A/C (#572)
+- Improve security options for IRMQTTServer example. (#575)
+- Require a changed firmware password before upload. (#576)
+
+**[Misc]**
+- Add missing '}' in output of Auto analyse. (#562)
+- Make A/C example code a bit more simple. (#571)
+
+
 ## _v2.5.2 (20181021)_
 
 **[Bug Fixes]**

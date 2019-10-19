@@ -19,11 +19,22 @@ GitHub: |P070_github|_
 
 Maintainer: |P070_maintainer|
 
+Used libraries: |P070_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P070_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P070_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P070_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

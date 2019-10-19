@@ -7,9 +7,9 @@
 #define CPLUGIN_ID_004         4
 #define CPLUGIN_NAME_004       "ThingSpeak"
 
-boolean CPlugin_004(byte function, struct EventStruct *event, String& string)
+bool CPlugin_004(byte function, struct EventStruct *event, String& string)
 {
-  boolean success = false;
+  bool success = false;
 
   switch (function)
   {
@@ -52,6 +52,7 @@ boolean CPlugin_004(byte function, struct EventStruct *event, String& string)
             success = false;
             break;
         }
+        break;
       }
 
     case CPLUGIN_PROTOCOL_SEND:
@@ -62,9 +63,18 @@ boolean CPlugin_004(byte function, struct EventStruct *event, String& string)
         break;
       }
 
+    case CPLUGIN_FLUSH:
+      {
+        process_c004_delay_queue();
+        delay(0);
+        break;
+      }
+
   }
   return success;
 }
+
+bool do_process_c004_delay_queue(int controller_number, const C004_queue_element& element, ControllerSettingsStruct& ControllerSettings);
 
 bool do_process_c004_delay_queue(int controller_number, const C004_queue_element& element, ControllerSettingsStruct& ControllerSettings) {
   WiFiClient client;
@@ -74,13 +84,19 @@ bool do_process_c004_delay_queue(int controller_number, const C004_queue_element
   String postDataStr = F("api_key=");
   postDataStr += SecuritySettings.ControllerPassword[element.controller_idx]; // used for API key
 
-  byte valueCount = getValueCountFromSensorType(element.sensorType);
-  for (byte x = 0; x < valueCount; x++)
-  {
-    postDataStr += F("&field");
-    postDataStr += element.idx + x;
-    postDataStr += "=";
-    postDataStr += formatUserVarNoCheck(element.TaskIndex, x);
+  if (element.sensorType == SENSOR_TYPE_STRING) {
+      postDataStr += F("&status=");
+      postDataStr += element.txt;    // FIXME TD-er: Is this correct?
+      // See: https://nl.mathworks.com/help/thingspeak/writedata.html
+  } else {
+    byte valueCount = getValueCountFromSensorType(element.sensorType);
+    for (byte x = 0; x < valueCount; x++)
+    {
+      postDataStr += F("&field");
+      postDataStr += element.idx + x;
+      postDataStr += "=";
+      postDataStr += formatUserVarNoCheck(element.TaskIndex, x);
+    }
   }
   String hostName = F("api.thingspeak.com"); // PM_CZ: HTTP requests must contain host headers.
   if (ControllerSettings.UseDNS)

@@ -1,21 +1,26 @@
-//********************************************************************************
-// Allowed IP range check
-//********************************************************************************
-#define ALL_ALLOWED            0
-#define LOCAL_SUBNET_ALLOWED   1
-#define ONLY_IP_RANGE_ALLOWED  2
 #define _HEAD false
 #define _TAIL true
 #define CHUNKED_BUFFER_SIZE          400
 
+
+#include "src/Globals/Device.h"
+#include "src/Static/WebStaticData.h"
+
+// ********************************************************************************
+// Core part of WebServer, the chunked streaming buffer
+// This must remain in the WebServer.ino file at the top.
+// ********************************************************************************
 void sendContentBlocking(String& data);
-void sendHeaderBlocking(bool json, const String& origin = "");
+void sendHeaderBlocking(bool          json,
+                        const String& origin = "");
 
 class StreamingBuffer {
 private:
+
   bool lowMemorySkip;
 
 public:
+
   uint32_t initialRam;
   uint32_t beforeTXRam;
   uint32_t duringTXRam;
@@ -25,7 +30,12 @@ public:
   unsigned int sentBytes;
   uint32_t flashStringCalls;
   uint32_t flashStringData;
+
+private:
+
   String buf;
+
+public:
 
   StreamingBuffer(void) : lowMemorySkip(false),
     initialRam(0), beforeTXRam(0), duringTXRam(0), finalRam(0), maxCoreUsage(0),
@@ -34,25 +44,55 @@ public:
     buf.reserve(CHUNKED_BUFFER_SIZE + 50);
     buf = "";
   }
-  StreamingBuffer operator= (String& a)                 { flush(); return addString(a); }
-  StreamingBuffer operator= (const String& a)           { flush(); return addString(a); }
-  StreamingBuffer operator+= (char a)                   { return addString(String(a)); }
-  StreamingBuffer operator+= (long unsigned int  a)     { return addString(String(a)); }
-  StreamingBuffer operator+= (float a)                  { return addString(String(a)); }
-  StreamingBuffer operator+= (int a)                    { return addString(String(a)); }
-  StreamingBuffer operator+= (uint32_t a)               { return addString(String(a)); }
-  StreamingBuffer operator+= (const String& a)          { return addString(a); }
 
-  StreamingBuffer operator+= (PGM_P str) {
+  StreamingBuffer operator=(String& a)                 {
+    flush(); return addString(a);
+  }
+
+  StreamingBuffer operator=(const String& a)           {
+    flush(); return addString(a);
+  }
+
+  StreamingBuffer operator+=(char a)                   {
+    return addString(String(a));
+  }
+
+  StreamingBuffer operator+=(long unsigned int a)     {
+    return addString(String(a));
+  }
+
+  StreamingBuffer operator+=(float a)                  {
+    return addString(String(a));
+  }
+
+  StreamingBuffer operator+=(int a)                    {
+    return addString(String(a));
+  }
+
+  StreamingBuffer operator+=(uint32_t a)               {
+    return addString(String(a));
+  }
+
+  StreamingBuffer operator+=(const String& a)          {
+    return addString(a);
+  }
+
+  StreamingBuffer operator+=(PGM_P str) {
     ++flashStringCalls;
-    if (!str) return *this; // return if the pointer is void
-    if (lowMemorySkip) return *this;
+
+    if (!str) { return *this; // return if the pointer is void
+    }
+
+    if (lowMemorySkip) { return *this; }
     int flush_step = CHUNKED_BUFFER_SIZE - this->buf.length();
-    if (flush_step < 1) flush_step = 0;
-    unsigned int pos = 0;
+
+    if (flush_step < 1) { flush_step = 0; }
+    unsigned int pos          = 0;
     const unsigned int length = strlen_P((PGM_P)str);
-    if (length == 0) return *this;
+
+    if (length == 0) { return *this; }
     flashStringData += length;
+
     while (pos < length) {
       if (flush_step == 0) {
         sendContentBlocking(this->buf);
@@ -66,13 +106,14 @@ public:
     return *this;
   }
 
-
   StreamingBuffer addString(const String& a) {
-    if (lowMemorySkip) return *this;
+    if (lowMemorySkip) { return *this; }
     int flush_step = CHUNKED_BUFFER_SIZE - this->buf.length();
-    if (flush_step < 1) flush_step = 0;
-    int pos = 0;
+
+    if (flush_step < 1) { flush_step = 0; }
+    int pos          = 0;
     const int length = a.length();
+
     while (pos < length) {
       if (flush_step == 0) {
         sendContentBlocking(this->buf);
@@ -95,7 +136,8 @@ public:
   }
 
   void checkFull(void) {
-    if (lowMemorySkip) this->buf = "";
+    if (lowMemorySkip) { this->buf = ""; }
+
     if (this->buf.length() > CHUNKED_BUFFER_SIZE) {
       trackTotalMem();
       sendContentBlocking(this->buf);
@@ -115,52 +157,60 @@ public:
   }
 
 private:
+
   void startStream(bool json, const String& origin) {
     maxCoreUsage = maxServerUsage = 0;
-    initialRam = ESP.getFreeHeap();
-    beforeTXRam = initialRam;
-    sentBytes = 0;
-    buf = "";
+    initialRam   = ESP.getFreeHeap();
+    beforeTXRam  = initialRam;
+    sentBytes    = 0;
+    buf          = "";
+
     if (beforeTXRam < 3000) {
       lowMemorySkip = true;
       WebServer.send(200, "text/plain", "Low memory. Cannot display webpage :-(");
        #if defined(ESP8266)
-         tcpCleanup();
-       #endif
+      tcpCleanup();
+       #endif // if defined(ESP8266)
       return;
-    } else
+    } else {
       sendHeaderBlocking(json, origin);
+    }
   }
 
   void trackTotalMem() {
     beforeTXRam = ESP.getFreeHeap();
-    if ((initialRam - beforeTXRam) > maxServerUsage)
+
+    if ((initialRam - beforeTXRam) > maxServerUsage) {
       maxServerUsage = initialRam - beforeTXRam;
+    }
   }
 
 public:
 
   void trackCoreMem() {
     duringTXRam = ESP.getFreeHeap();
-    if ((initialRam - duringTXRam) > maxCoreUsage)
+
+    if ((initialRam - duringTXRam) > maxCoreUsage) {
       maxCoreUsage = (initialRam - duringTXRam);
+    }
   }
 
   void endStream(void) {
     if (!lowMemorySkip) {
-      if (buf.length() > 0) sendContentBlocking(buf);
+      if (buf.length() > 0) { sendContentBlocking(buf); }
       buf = "";
       sendContentBlocking(buf);
       finalRam = ESP.getFreeHeap();
+
       /*
-      if (loglevelActiveFor(LOG_LEVEL_DEBUG)) {
-        String log = String("Ram usage: Webserver only: ") + maxServerUsage +
+         if (loglevelActiveFor(LOG_LEVEL_DEBUG)) {
+         String log = String("Ram usage: Webserver only: ") + maxServerUsage +
                      " including Core: " + maxCoreUsage +
                      " flashStringCalls: " + flashStringCalls +
                      " flashStringData: " + flashStringData;
-        addLog(LOG_LEVEL_DEBUG, log);
-      }
-      */
+         addLog(LOG_LEVEL_DEBUG, log);
+         }
+       */
     } else {
       addLog(LOG_LEVEL_ERROR, String("Webpage skipped: low memory: ") + finalRam);
       lowMemorySkip = false;
@@ -171,37 +221,46 @@ public:
 void sendContentBlocking(String& data) {
   checkRAM(F("sendContentBlocking"));
   uint32_t freeBeforeSend = ESP.getFreeHeap();
-  const uint32_t length = data.length();
+  const uint32_t length   = data.length();
+#ifndef BUILD_NO_DEBUG
   addLog(LOG_LEVEL_DEBUG_DEV, String("sendcontent free: ") + freeBeforeSend + " chunk size:" + length);
+#endif // ifndef BUILD_NO_DEBUG
   freeBeforeSend = ESP.getFreeHeap();
-  if (TXBuffer.beforeTXRam > freeBeforeSend)
+
+  if (TXBuffer.beforeTXRam > freeBeforeSend) {
     TXBuffer.beforeTXRam = freeBeforeSend;
+  }
   TXBuffer.duringTXRam = freeBeforeSend;
 #if defined(ESP8266) && defined(ARDUINO_ESP8266_RELEASE_2_3_0)
   String size = formatToHex(length) + "\r\n";
+
   // do chunked transfer encoding ourselves (WebServer doesn't support it)
   WebServer.sendContent(size);
-  if (length > 0) WebServer.sendContent(data);
+
+  if (length > 0) { WebServer.sendContent(data); }
   WebServer.sendContent("\r\n");
-#else  // ESP8266 2.4.0rc2 and higher and the ESP32 webserver supports chunked http transfer
+#else // ESP8266 2.4.0rc2 and higher and the ESP32 webserver supports chunked http transfer
   unsigned int timeout = 0;
-  if (freeBeforeSend < 5000) timeout = 100;
-  if (freeBeforeSend < 4000) timeout = 1000;
+
+  if (freeBeforeSend < 5000) { timeout = 100; }
+
+  if (freeBeforeSend < 4000) { timeout = 1000; }
   const uint32_t beginWait = millis();
   WebServer.sendContent(data);
+
   while ((ESP.getFreeHeap() < freeBeforeSend) &&
          !timeOutReached(beginWait + timeout)) {
-    if (ESP.getFreeHeap() < TXBuffer.duringTXRam)
+    if (ESP.getFreeHeap() < TXBuffer.duringTXRam) {
       TXBuffer.duringTXRam = ESP.getFreeHeap();
-    ;
+    }
     TXBuffer.trackCoreMem();
     checkRAM(F("duringDataTX"));
     delay(1);
   }
-#endif
+#endif // if defined(ESP8266) && defined(ARDUINO_ESP8266_RELEASE_2_3_0)
 
   TXBuffer.sentBytes += length;
-  data = "";
+  data                = "";
   delay(0);
 }
 
@@ -209,101 +268,117 @@ void sendHeaderBlocking(bool json, const String& origin) {
   checkRAM(F("sendHeaderBlocking"));
   WebServer.client().flush();
   String contenttype;
-  if (json)
+
+  if (json) {
     contenttype = F("application/json");
-  else
+  }
+  else {
     contenttype = F("text/html");
+  }
 
 #if defined(ESP8266) && defined(ARDUINO_ESP8266_RELEASE_2_3_0)
   WebServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
-  WebServer.sendHeader(F("Accept-Ranges"), F("none"));
-  WebServer.sendHeader(F("Cache-Control"), F("no-cache"));
+  WebServer.sendHeader(F("Accept-Ranges"),     F("none"));
+  WebServer.sendHeader(F("Cache-Control"),     F("no-cache"));
   WebServer.sendHeader(F("Transfer-Encoding"), F("chunked"));
-  if (json)
-    WebServer.sendHeader(F("Access-Control-Allow-Origin"),"*");
+
+  if (json) {
+    WebServer.sendHeader(F("Access-Control-Allow-Origin"), "*");
+  }
   WebServer.send(200, contenttype, "");
-#else
-  unsigned int timeout = 0;
-  uint32_t freeBeforeSend = ESP.getFreeHeap();
-  if (freeBeforeSend < 5000) timeout = 100;
-  if (freeBeforeSend < 4000) timeout = 1000;
+#else // if defined(ESP8266) && defined(ARDUINO_ESP8266_RELEASE_2_3_0)
+  unsigned int timeout        = 0;
+  uint32_t     freeBeforeSend = ESP.getFreeHeap();
+
+  if (freeBeforeSend < 5000) { timeout = 100; }
+
+  if (freeBeforeSend < 4000) { timeout = 1000; }
   const uint32_t beginWait = millis();
   WebServer.setContentLength(CONTENT_LENGTH_UNKNOWN);
   WebServer.sendHeader(F("Cache-Control"), F("no-cache"));
+
   if (origin.length() > 0) {
     WebServer.sendHeader(F("Access-Control-Allow-Origin"), origin);
   }
   WebServer.send(200, contenttype, "");
+
   // dont wait on 2.3.0. Memory returns just too slow.
   while ((ESP.getFreeHeap() < freeBeforeSend) &&
          !timeOutReached(beginWait + timeout)) {
     checkRAM(F("duringHeaderTX"));
     delay(1);
   }
-#endif
+#endif // if defined(ESP8266) && defined(ARDUINO_ESP8266_RELEASE_2_3_0)
   delay(0);
 }
 
 void sendHeadandTail(const String& tmplName, boolean Tail = false, boolean rebooting = false) {
   String pageTemplate = "";
-  String fileName = tmplName;
+  String fileName     = tmplName;
+
   fileName += F(".htm");
-  fs::File f = SPIFFS.open(fileName, "r+");
+  fs::File f = tryOpenFile(fileName, "r");
 
   if (f) {
     pageTemplate.reserve(f.size());
-    while (f.available()) pageTemplate += (char)f.read();
+
+    while (f.available()) { pageTemplate += (char)f.read(); }
     f.close();
   } else {
     // TODO TD-er: Should send data directly to TXBuffer instead of using large strings.
     getWebPageTemplateDefault(tmplName, pageTemplate);
   }
   checkRAM(F("sendWebPage"));
+
   // web activity timer
   lastWeb = millis();
 
   if (Tail) {
     TXBuffer += pageTemplate.substring(
-        11 + // Size of "{{content}}"
-        pageTemplate.indexOf(F("{{content}}")));  // advance beyond content key
+      11 +                                     // Size of "{{content}}"
+      pageTemplate.indexOf(F("{{content}}"))); // advance beyond content key
   } else {
     int indexStart = 0;
-    int indexEnd = 0;
-    int readPos = 0; // Position of data sent to TXBuffer
-    String varName;  //, varValue;
+    int indexEnd   = 0;
+    int readPos    = 0; // Position of data sent to TXBuffer
+    String varName;     // , varValue;
     String meta;
-    if(rebooting){
+
+    if (rebooting) {
       meta = F("<meta http-equiv='refresh' content='10 url=/'>");
     }
+
     while ((indexStart = pageTemplate.indexOf(F("{{"), indexStart)) >= 0) {
       TXBuffer += pageTemplate.substring(readPos, indexStart);
-      readPos = indexStart;
+      readPos   = indexStart;
+
       if ((indexEnd = pageTemplate.indexOf(F("}}"), indexStart)) > 0) {
-        varName = pageTemplate.substring(indexStart + 2, indexEnd);
+        varName    = pageTemplate.substring(indexStart + 2, indexEnd);
         indexStart = indexEnd + 2;
-        readPos = indexEnd + 2;
+        readPos    = indexEnd + 2;
         varName.toLowerCase();
 
-        if (varName == F("content")) {  // is var == page content?
-          break;  // send first part of result only
+        if (varName == F("content")) { // is var == page content?
+          break;                       // send first part of result only
         } else if (varName == F("error")) {
           getErrorNotifications();
         }
-        else if(varName == F("meta")) {
+        else if (varName == F("meta")) {
           TXBuffer += meta;
         }
         else {
           getWebPageTemplateVar(varName);
         }
-      } else {  // no closing "}}"
+      } else { // no closing "}}"
         // eat "{{"
-        readPos += 2;
+        readPos    += 2;
         indexStart += 2;
       }
     }
   }
+
   if (shouldReboot) {
-    //we only add this here as a seperate chunk to prevent using too much memory at once
+    // we only add this here as a seperate chunk to prevent using too much memory at once
     html_add_script(false);
     TXBuffer += DATA_REBOOT_JS;
     html_add_script_end();
@@ -312,268 +387,152 @@ void sendHeadandTail(const String& tmplName, boolean Tail = false, boolean reboo
 
 void sendHeadandTail_stdtemplate(boolean Tail = false, boolean rebooting = false) {
   sendHeadandTail(F("TmplStd"), Tail, rebooting);
-}
 
-boolean ipLessEqual(const IPAddress& ip, const IPAddress& high)
-{
-  for (byte i = 0; i < 4; ++i) {
-    if (ip[i] > high[i]) return false;
-  }
-  return true;
-}
-
-boolean ipInRange(const IPAddress& ip, const IPAddress& low, const IPAddress& high)
-{
-  return (ipLessEqual(low, ip) && ipLessEqual(ip, high));
-}
-
-String describeAllowedIPrange() {
-  String  reply;
-  switch (SecuritySettings.IPblockLevel) {
-    case ALL_ALLOWED:
-     reply +=  F("All Allowed");
-      break;
-    default:
-    {
-      IPAddress low, high;
-      getIPallowedRange(low, high);
-      reply +=  formatIP(low);
-      reply +=  F(" - ");
-      reply +=  formatIP(high);
+  if (!Tail) {
+    if (!clientIPinSubnet() && WifiIsAP(WiFi.getMode()) && (WiFi.softAPgetStationNum() > 0)) {
+      addHtmlError(F("Warning: Connected via AP"));
     }
   }
-  return reply;
 }
 
-bool getIPallowedRange(IPAddress& low, IPAddress& high)
-{
-  switch (SecuritySettings.IPblockLevel) {
-    case LOCAL_SUBNET_ALLOWED:
-      return getSubnetRange(low, high);
-    case ONLY_IP_RANGE_ALLOWED:
-      low = SecuritySettings.AllowedIPrangeLow;
-      high = SecuritySettings.AllowedIPrangeHigh;
-      break;
-    default:
-      low = IPAddress(0,0,0,0);
-      high = IPAddress(255,255,255,255);
-      return false;
-  }
-  return true;
-}
-
-boolean clientIPallowed()
-{
-  // TD-er Must implement "safe time after boot"
-  IPAddress low, high;
-  if (!getIPallowedRange(low, high))
-  {
-    // No subnet range determined, cannot filter on IP
-    return true;
-  }
-  WiFiClient client(WebServer.client());
-  if (ipInRange(client.remoteIP(), low, high))
-    return true;
-
-  if (WifiIsAP(WiFi.getMode())) {
-    // @TD-er Fixme: Should match subnet of SoftAP.
-    return true;
-  }
-  String response = F("IP blocked: ");
-  response += formatIP(client.remoteIP());
-  WebServer.send(403, "text/html", response);
-  if (loglevelActiveFor(LOG_LEVEL_ERROR)) {
-    response += F(" Allowed: ");
-    response += formatIP(low);
-    response += F(" - ");
-    response += formatIP(high);
-    addLog(LOG_LEVEL_ERROR, response);
-  }
-  return false;
-}
-
-void clearAccessBlock()
-{
-  SecuritySettings.IPblockLevel = ALL_ALLOWED;
-}
-
-//********************************************************************************
+// ********************************************************************************
 // Web Interface init
-//********************************************************************************
-//#include "core_version.h"
+// ********************************************************************************
+// #include "core_version.h"
 #define HTML_SYMBOL_WARNING "&#9888;"
 #define HTML_SYMBOL_INPUT   "&#8656;"
 #define HTML_SYMBOL_OUTPUT  "&#8658;"
 #define HTML_SYMBOL_I_O     "&#8660;"
 
 
-#if defined(ESP8266)
-  #define TASKS_PER_PAGE 12
-#endif
-#if defined(ESP32)
-  #define TASKS_PER_PAGE 32
-#endif
+# define TASKS_PER_PAGE TASKS_MAX
 
-int getFormItemInt(const String &key, int defaultValue) {
-  int value = defaultValue;
-  getCheckWebserverArg_int(key, value);
-  return value;
-}
+#define strncpy_webserver_arg(D, N) safe_strncpy(D, WebServer.arg(N).c_str(), sizeof(D));
+#define update_whenset_FormItemInt(K, V) { int tmpVal; \
+                                           if (getCheckWebserverArg_int(K, tmpVal)) V = tmpVal; }
 
-bool getCheckWebserverArg_int(const String &key, int& value) {
-  String valueStr = WebServer.arg(key);
-  if (!isInt(valueStr)) return false;
-  value = valueStr.toInt();
-  return true;
-}
-
-#define strncpy_webserver_arg(D,N) safe_strncpy(D, WebServer.arg(N).c_str(), sizeof(D));
-#define update_whenset_FormItemInt(K,V) { int tmpVal; if (getCheckWebserverArg_int(K, tmpVal)) V=tmpVal;}
-
-
-bool isFormItemChecked(const String& id)
-{
-  return WebServer.arg(id) == F("on");
-}
-
-int getFormItemInt(const String& id)
-{
-  return getFormItemInt(id, 0);
-}
-
-float getFormItemFloat(const String& id)
-{
-  String val = WebServer.arg(id);
-  if (!isFloat(val)) return 0.0;
-  return val.toFloat();
-}
-
-bool isFormItem(const String& id)
-{
-  return (WebServer.arg(id).length() != 0);
-}
-
-
-
-//if there is an error-string, add it to the html code with correct formatting
-void addHtmlError(const String& error){
-  if (error.length()>0)
-  {
-    TXBuffer += F("<div class=\"");
-    if (error.startsWith(F("Warn"))) {
-      TXBuffer += F("warning");
-    } else {
-      TXBuffer += F("alert");
-    }
-    TXBuffer += F("\"><span class=\"closebtn\" onclick=\"this.parentElement.style.display='none';\">&times;</span>");
-    TXBuffer += error;
-    TXBuffer += F("</div>");
-  }
-  else
-  {
-    TXBuffer += jsToastMessageBegin;
-    // we can push custom messages here in future releases...
-    TXBuffer += F("Submitted");
-    TXBuffer += jsToastMessageEnd;
-  }
-}
-
-void addHtml(const String& html) {
-  TXBuffer += html;
-}
-
-void addDisabled() {
-  TXBuffer += F(" disabled");
-}
 
 void WebServerInit()
 {
+  if (webserver_init) { return; }
+  webserver_init = true;
+
   // Prepare webserver pages
-  WebServer.on("/", handle_root);
-  WebServer.on(F("/config"), handle_config);
-  WebServer.on(F("/controllers"), handle_controllers);
-  WebServer.on(F("/hardware"), handle_hardware);
-  WebServer.on(F("/devices"), handle_devices);
+  WebServer.on("/",                 handle_root);
+  WebServer.on(F("/advanced"),      handle_advanced);
+  WebServer.on(F("/config"),        handle_config);
+  WebServer.on(F("/control"),       handle_control);
+  WebServer.on(F("/controllers"),   handle_controllers);
+  WebServer.on(F("/devices"),       handle_devices);
+  WebServer.on(F("/download"),      handle_download);
+
+
+  WebServer.on(F("/dumpcache"),     handle_dumpcache);  // C016 specific entrie
+  WebServer.on(F("/cache_json"),    handle_cache_json); // C016 specific entrie
+  WebServer.on(F("/cache_csv"),     handle_cache_csv);  // C016 specific entrie
+
+
+  WebServer.on(F("/factoryreset"),  handle_factoryreset);
+  #ifdef USE_SETTINGS_ARCHIVE
+  WebServer.on(F("/settingsarchive"), handle_settingsarchive);
+  #endif
+  WebServer.on(F("/favicon.ico"),   handle_favicon);
+  WebServer.on(F("/filelist"),      handle_filelist);
+  WebServer.on(F("/hardware"),      handle_hardware);
+  WebServer.on(F("/i2cscanner"),    handle_i2cscanner);
+  WebServer.on(F("/json"),          handle_json);     // Also part of WEBSERVER_NEW_UI
+  WebServer.on(F("/log"),           handle_log);
+  WebServer.on(F("/login"),         handle_login);
+  WebServer.on(F("/logjson"),       handle_log_JSON); // Also part of WEBSERVER_NEW_UI
+#ifndef NOTIFIER_SET_NONE
   WebServer.on(F("/notifications"), handle_notifications);
-  WebServer.on(F("/log"), handle_log);
-  WebServer.on(F("/logjson"), handle_log_JSON);
-  WebServer.on(F("/tools"), handle_tools);
-  WebServer.on(F("/i2cscanner"), handle_i2cscanner);
-  WebServer.on(F("/wifiscanner"), handle_wifiscanner);
-  WebServer.on(F("/login"), handle_login);
-  WebServer.on(F("/control"), handle_control);
-  WebServer.on(F("/download"), handle_download);
-  WebServer.on(F("/upload"), HTTP_GET, handle_upload);
-  WebServer.on(F("/upload"), HTTP_POST, handle_upload_post, handleFileUpload);
-  WebServer.onNotFound(handleNotFound);
-  WebServer.on(F("/filelist"), handle_filelist);
-#ifdef FEATURE_SD
-  WebServer.on(F("/SDfilelist"), handle_SDfilelist);
-#endif
-  WebServer.on(F("/advanced"), handle_advanced);
-  WebServer.on(F("/setup"), handle_setup);
-  WebServer.on(F("/json"), handle_json);
-  WebServer.on(F("/timingstats_json"), handle_timingstats_json);
-  WebServer.on(F("/timingstats"), handle_timingstats);
-  WebServer.on(F("/rules"), handle_rules_new);
-  WebServer.on(F("/rules/"), Goto_Rules_Root);
-  WebServer.on(F("/rules/add"), []()
+#endif // ifndef NOTIFIER_SET_NONE
+  WebServer.on(F("/pinstates"),     handle_pinstates);
+  WebServer.on(F("/rules"),         handle_rules_new);
+  WebServer.on(F("/rules/"),        Goto_Rules_Root);
+  WebServer.on(F("/rules/add"),     []()
   {
-    handle_rules_edit(WebServer.uri(),true);
+    handle_rules_edit(WebServer.uri(), true);
   });
-  WebServer.on(F("/rules/backup"), handle_rules_backup);
-  WebServer.on(F("/rules/delete"), handle_rules_delete);
-  WebServer.on(F("/sysinfo"), handle_sysinfo);
-  WebServer.on(F("/pinstates"), handle_pinstates);
-  WebServer.on(F("/sysvars"), handle_sysvars);
-  WebServer.on(F("/factoryreset"), handle_factoryreset);
-  WebServer.on(F("/favicon.ico"), handle_favicon);
+  WebServer.on(F("/rules/backup"),      handle_rules_backup);
+  WebServer.on(F("/rules/delete"),      handle_rules_delete);
+#ifdef FEATURE_SD
+  WebServer.on(F("/SDfilelist"),        handle_SDfilelist);
+#endif // ifdef FEATURE_SD
+  WebServer.on(F("/setup"),             handle_setup);
+  WebServer.on(F("/sysinfo"),           handle_sysinfo);
+#ifdef WEBSERVER_SYSVARS
+  WebServer.on(F("/sysvars"),           handle_sysvars);
+#endif // WEBSERVER_SYSVARS
+#ifdef WEBSERVER_TIMINGSTATS
+  WebServer.on(F("/timingstats"),       handle_timingstats);
+#endif // WEBSERVER_TIMINGSTATS
+  WebServer.on(F("/tools"),             handle_tools);
+  WebServer.on(F("/upload"),            HTTP_GET,  handle_upload);
+  WebServer.on(F("/upload"),            HTTP_POST, handle_upload_post, handleFileUpload);
+  WebServer.on(F("/wifiscanner"),       handle_wifiscanner);
+
+#ifdef WEBSERVER_NEW_UI
+  WebServer.on(F("/factoryreset_json"), handle_factoryreset_json);
+  WebServer.on(F("/filelist_json"),     handle_filelist_json);
+  WebServer.on(F("/i2cscanner_json"),   handle_i2cscanner_json);
+  WebServer.on(F("/node_list_json"),    handle_nodes_list_json);
+  WebServer.on(F("/pinstates_json"),    handle_pinstates_json);
+  WebServer.on(F("/sysinfo_json"),      handle_sysinfo_json);
+  WebServer.on(F("/timingstats_json"),  handle_timingstats_json);
+  WebServer.on(F("/upload_json"),       HTTP_POST, handle_upload_json, handleFileUpload);
+  WebServer.on(F("/wifiscanner_json"),  handle_wifiscanner_json);
+#endif // WEBSERVER_NEW_UI
+
+  WebServer.onNotFound(handleNotFound);
 
   #if defined(ESP8266)
   {
     uint32_t maxSketchSize;
-    bool use2step;
+    bool     use2step;
+
     if (OTA_possible(maxSketchSize, use2step)) {
       httpUpdater.setup(&WebServer);
     }
   }
-  #endif
+  #endif // if defined(ESP8266)
 
   #if defined(ESP8266)
+
   if (Settings.UseSSDP)
   {
     WebServer.on(F("/ssdp.xml"), HTTP_GET, []() {
       WiFiClient client(WebServer.client());
+      client.setTimeout(CONTROLLER_CLIENTTIMEOUT_DFLT);
       SSDP_schema(client);
     });
     SSDP_begin();
   }
-  #endif
+  #endif // if defined(ESP8266)
 }
 
 void setWebserverRunning(bool state) {
-  if (webserver_state == state)
+  if (webserverRunning == state) {
     return;
+  }
+
   if (state) {
-    if (!webserver_init) {
-      WebServerInit();
-      webserver_init = true;
-    }
+    WebServerInit();
     WebServer.begin();
     addLog(LOG_LEVEL_INFO, F("Webserver: start"));
   } else {
     WebServer.stop();
     addLog(LOG_LEVEL_INFO, F("Webserver: stop"));
   }
-  webserver_state = state;
+  webserverRunning = state;
 }
-
 
 void getWebPageTemplateDefault(const String& tmplName, String& tmpl)
 {
   tmpl.reserve(576);
-  const bool addJS = true;
+  const bool addJS   = true;
   const bool addMeta = true;
+
   if (tmplName == F("TmplAP"))
   {
     getWebPageTemplateDefaultHead(tmpl, !addMeta, !addJS);
@@ -596,12 +555,12 @@ void getWebPageTemplateDefault(const String& tmplName, String& tmpl)
   {
     getWebPageTemplateDefaultHead(tmpl, !addMeta, addJS);
     tmpl += F(
-        "<body>"
-        "{{content}}"
-        "</body></html>"
-            );
+      "<body>"
+      "{{content}}"
+      "</body></html>"
+      );
   }
-  else   //all other template names e.g. TmplStd
+  else // all other template names e.g. TmplStd
   {
     getWebPageTemplateDefaultHead(tmpl, addMeta, addJS);
     tmpl += F("<body class='bodymenu'>"
@@ -614,12 +573,14 @@ void getWebPageTemplateDefault(const String& tmplName, String& tmpl)
 
 void getWebPageTemplateDefaultHead(String& tmpl, bool addMeta, bool addJS) {
   tmpl += F("<!DOCTYPE html><html lang='en'>"
-              "<head>"
-                "<meta charset='utf-8'/>"
-                "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
-                "<title>{{name}}</title>");
-  if (addMeta) tmpl += F("{{meta}}");
-  if (addJS) tmpl += F("{{js}}");
+            "<head>"
+            "<meta charset='utf-8'/>"
+            "<meta name='viewport' content='width=device-width, initial-scale=1.0'>"
+            "<title>{{name}}</title>");
+
+  if (addMeta) { tmpl += F("{{meta}}"); }
+
+  if (addJS) { tmpl += F("{{js}}"); }
 
   tmpl += F("{{css}}"
             "</head>");
@@ -630,47 +591,51 @@ void getWebPageTemplateDefaultHeader(String& tmpl, const String& title, bool add
             "<h1>ESP Easy Mega: ");
   tmpl += title;
   tmpl += F("</h1><BR>");
-  if (addMenu) tmpl += F("{{menu}}");
+
+  if (addMenu) { tmpl += F("{{menu}}"); }
   tmpl += F("</header>");
 }
 
 void getWebPageTemplateDefaultContentSection(String& tmpl) {
   tmpl += F("<section>"
-              "<span class='message error'>"
-                "{{error}}"
-              "</span>"
-              "{{content}}"
+            "<span class='message error'>"
+            "{{error}}"
+            "</span>"
+            "{{content}}"
             "</section>"
-          );
+            );
 }
 
 void getWebPageTemplateDefaultFooter(String& tmpl) {
   tmpl += F("<footer>"
-              "<br>"
-              "<h6>Powered by <a href='http://www.letscontrolit.com' style='font-size: 15px; text-decoration: none'>Let's Control It</a> community</h6>"
+            "<br>"
+            "<h6>Powered by <a href='http://www.letscontrolit.com' style='font-size: 15px; text-decoration: none'>Let's Control It</a> community</h6>"
             "</footer>"
             "</body></html>"
-          );
+            );
 }
 
 void getErrorNotifications() {
   // Check number of MQTT controllers active.
   int nrMQTTenabled = 0;
+
   for (byte x = 0; x < CONTROLLER_MAX; x++) {
     if (Settings.Protocol[x] != 0) {
       byte ProtocolIndex = getProtocolIndex(Settings.Protocol[x]);
+
       if (Settings.ControllerEnabled[x] && Protocol[ProtocolIndex].usesMQTT) {
         ++nrMQTTenabled;
       }
     }
   }
+
   if (nrMQTTenabled > 1) {
     // Add warning, only one MQTT protocol should be used.
     addHtmlError(F("Only one MQTT controller should be active."));
   }
+
   // Check checksum of stored settings.
 }
-
 
 #define MENU_INDEX_MAIN          0
 #define MENU_INDEX_CONFIG        1
@@ -683,10 +648,11 @@ void getErrorNotifications() {
 static byte navMenuIndex = MENU_INDEX_MAIN;
 
 
-void getWebPageTemplateVar(const String& varName )
+void getWebPageTemplateVar(const String& varName)
 {
- // serialPrint(varName); serialPrint(" : free: "); serialPrint(ESP.getFreeHeap());   serialPrint("var len before:  "); serialPrint (varValue.length()) ;serialPrint("after:  ");
- //varValue = "";
+  // serialPrint(varName); serialPrint(" : free: "); serialPrint(ESP.getFreeHeap());   serialPrint("var len before:  "); serialPrint
+  // (varValue.length()) ;serialPrint("after:  ");
+  // varValue = "";
 
   if (varName == F("name"))
   {
@@ -700,29 +666,38 @@ void getWebPageTemplateVar(const String& varName )
 
   else if (varName == F("menu"))
   {
-    static const __FlashStringHelper* gpMenu[8][3] = {
+    static const __FlashStringHelper *gpMenu[8][3] = {
       // See https://github.com/letscontrolit/ESPEasy/issues/1650
       // Icon,        Full width label,   URL
-      F("&#8962;"),   F("Main"),          F("/"),              //0
-      F("&#9881;"),   F("Config"),        F("/config"),        //1
-      F("&#128172;"), F("Controllers"),   F("/controllers"),   //2
-      F("&#128204;"), F("Hardware"),      F("/hardware"),      //3
-      F("&#128268;"), F("Devices"),       F("/devices"),       //4
-      F("&#10740;"),  F("Rules"),         F("/rules"),         //5
-      F("&#9993;"),   F("Notifications"), F("/notifications"), //6
-      F("&#128295;"), F("Tools"),         F("/tools"),         //7
+      F("&#8962;"),   F("Main"),          F("/"),              // 0
+      F("&#9881;"),   F("Config"),        F("/config"),        // 1
+      F("&#128172;"), F("Controllers"),   F("/controllers"),   // 2
+      F("&#128204;"), F("Hardware"),      F("/hardware"),      // 3
+      F("&#128268;"), F("Devices"),       F("/devices"),       // 4
+      F("&#10740;"),  F("Rules"),         F("/rules"),         // 5
+      F("&#9993;"),   F("Notifications"), F("/notifications"), // 6
+      F("&#128295;"), F("Tools"),         F("/tools"),         // 7
     };
 
     TXBuffer += F("<div class='menubar'>");
 
     for (byte i = 0; i < 8; i++)
     {
-      if (i == MENU_INDEX_RULES && !Settings.UseRules)   //hide rules menu item
+      if ((i == MENU_INDEX_RULES) && !Settings.UseRules) { // hide rules menu item
         continue;
+      }
+#ifdef NOTIFIER_SET_NONE
+
+      if (i == MENU_INDEX_NOTIFICATIONS) { // hide notifications menu item
+        continue;
+      }
+#endif // ifdef NOTIFIER_SET_NONE
 
       TXBuffer += F("<a class='menu");
-      if (i == navMenuIndex)
+
+      if (i == navMenuIndex) {
         TXBuffer += F(" active");
+      }
       TXBuffer += F("' href='");
       TXBuffer += gpMenu[i][2];
       TXBuffer += "'>";
@@ -746,14 +721,15 @@ void getWebPageTemplateVar(const String& varName )
 
   else if (varName == F("css"))
   {
-    if (SPIFFS.exists(F("esp.css")))   //now css is written in writeDefaultCSS() to SPIFFS and always present
-    //if (0) //TODO
+    if (SPIFFS.exists(F("esp.css"))) // now css is written in writeDefaultCSS() to SPIFFS and always present
+    // if (0) //TODO
     {
       TXBuffer = F("<link rel=\"stylesheet\" type=\"text/css\" href=\"esp.css\">");
     }
-   else
+    else
     {
       TXBuffer += F("<style>");
+
       // Send CSS per chunk to avoid sending either too short or too large strings.
       TXBuffer += DATA_ESPEASY_DEFAULT_MIN_CSS;
       TXBuffer += F("</style>");
@@ -768,12 +744,12 @@ void getWebPageTemplateVar(const String& varName )
 
   else if (varName == F("error"))
   {
-    //print last error - not implemented yet
+    // print last error - not implemented yet
   }
 
   else if (varName == F("debug"))
   {
-    //print debug messages - not implemented yet
+    // print debug messages - not implemented yet
   }
 
   else
@@ -783,21 +759,21 @@ void getWebPageTemplateVar(const String& varName )
       log += varName;
       addLog(LOG_LEVEL_ERROR, log);
     }
-    //no return string - eat var name
+
+    // no return string - eat var name
   }
-
- }
-
+}
 
 void writeDefaultCSS(void)
 {
-  return; //TODO
+  return; // TODO
 
   if (!SPIFFS.exists(F("esp.css")))
   {
     String defaultCSS;
 
-    fs::File f = SPIFFS.open(F("esp.css"), "w");
+    fs::File f = tryOpenFile(F("esp.css"), "w");
+
     if (f)
     {
       if (loglevelActiveFor(LOG_LEVEL_INFO)) {
@@ -806,233 +782,130 @@ void writeDefaultCSS(void)
         log += F(" bytes)");
         addLog(LOG_LEVEL_INFO, log);
       }
-      defaultCSS= PGMT(DATA_ESPEASY_DEFAULT_MIN_CSS);
-      f.write((const unsigned char*)defaultCSS.c_str(), defaultCSS.length());   //note: content must be in RAM - a write of F("XXX") does not work
+      defaultCSS = PGMT(DATA_ESPEASY_DEFAULT_MIN_CSS);
+      f.write((const unsigned char *)defaultCSS.c_str(), defaultCSS.length()); // note: content must be in RAM - a write of F("XXX") does
+                                                                               // not work
       f.close();
     }
-
   }
 }
 
+int8_t level     = 0;
+int8_t lastLevel = -1;
 
-//********************************************************************************
-// Add top menu
-//********************************************************************************
-void addHeader(boolean showMenu, String& str)
-{
-  //not longer used - now part of template
-}
+void json_quote_name(const String& val) {
+  if (lastLevel == level) { TXBuffer += ","; }
 
-
-//********************************************************************************
-// Add footer to web page
-//********************************************************************************
-void addFooter(const String& str)
-{
-  //not longer used - now part of template
-}
-
-
-//********************************************************************************
-// Web Interface root page
-//********************************************************************************
-void handle_root() {
-  checkRAM(F("handle_root"));
-  // if Wifi setup, launch setup wizard
-  if (wifiSetup)
-  {
-    WebServer.send(200, "text/html", F("<meta HTTP-EQUIV='REFRESH' content='0; url=/setup'>"));
-    return;
+  if (val.length() > 0) {
+    TXBuffer += '\"';
+    TXBuffer += val;
+    TXBuffer += '\"';
+    TXBuffer += ':';
   }
-  if (!isLoggedIn()) return;
-  navMenuIndex = 0;
-  TXBuffer.startStream();
-  String sCommand = WebServer.arg(F("cmd"));
-  boolean rebootCmd = strcasecmp_P(sCommand.c_str(), PSTR("reboot")) == 0;
-  sendHeadandTail_stdtemplate(_HEAD, rebootCmd);
+}
 
-  int freeMem = ESP.getFreeHeap();
+void json_quote_val(const String& val) {
+  TXBuffer += '\"';
+  TXBuffer += val;
+  TXBuffer += '\"';
+}
 
+void json_open(bool arr = false, const String& name = String()) {
+  json_quote_name(name);
+  TXBuffer += arr ? "[" : "{";
+  lastLevel = level;
+  level++;
+}
 
-  if ((strcasecmp_P(sCommand.c_str(), PSTR("wifidisconnect")) != 0) && (rebootCmd == false)&& (strcasecmp_P(sCommand.c_str(), PSTR("reset")) != 0))
+void json_init() {
+  level     = 0;
+  lastLevel = -1;
+}
+
+void json_close(bool arr = false) {
+  TXBuffer += arr ? "]" : "}";
+  level--;
+  lastLevel = level;
+}
+
+void json_number(const String& name, const String& value) {
+  json_quote_name(name);
+  json_quote_val(value);
+  lastLevel = level;
+}
+
+void json_prop(const String& name, const String& value) {
+  json_quote_name(name);
+  json_quote_val(value);
+  lastLevel = level;
+}
+
+// ********************************************************************************
+// Add a task select dropdown list
+// ********************************************************************************
+void addTaskSelect(const String& name,  int choice)
+{
+  String deviceName;
+
+  TXBuffer += F("<select id='selectwidth' name='");
+  TXBuffer += name;
+  TXBuffer += F("' onchange='return dept_onchange(frmselect)'>");
+
+  for (byte x = 0; x < TASKS_MAX; x++)
   {
-    if (timerAPoff)
-      timerAPoff = millis() + 2000L;  //user has reached the main page - AP can be switched off in 2..3 sec
+    deviceName = "";
 
-
-
-    printToWeb = true;
-    printWebString = "";
-    if (sCommand.length() > 0) {
-      ExecuteCommand(VALUE_SOURCE_HTTP, sCommand.c_str());
-    }
-
-    IPAddress ip = WiFi.localIP();
-    // IPAddress gw = WiFi.gatewayIP();
-
-    TXBuffer += printWebString;
-    TXBuffer += F("<form>");
-    html_table_class_normal();
-    addFormHeader(F("System Info"));
-
-    addRowLabel(F("Unit"));
-    TXBuffer += String(Settings.Unit);
-
-    addRowLabel(F("GIT version"));
-    TXBuffer += BUILD_GIT;
-
-    addRowLabel(F("Local Time"));
-    if (Settings.UseNTP)
+    if (Settings.TaskDeviceNumber[x] != 0)
     {
-      TXBuffer += getDateTimeString('-', ':', ' ');
-    }
-    else
-      TXBuffer += F("<font color='red'>NTP disabled</font>");
+      byte DeviceIndex = getDeviceIndex(Settings.TaskDeviceNumber[x]);
 
-    addRowLabel(F("Uptime"));
-    {
-        int minutes = wdcounter / 2;
-        int days = minutes / 1440;
-        minutes = minutes % 1440;
-        int hrs = minutes / 60;
-        minutes = minutes % 60;
-        char strUpTime[40];
-        sprintf_P(strUpTime, PSTR("%d days %d hours %d minutes"), days, hrs, minutes);
-        TXBuffer += strUpTime;
-    }
-    addRowLabel(F("Load"));
-    if (wdcounter > 0)
-    {
-      TXBuffer += String(getCPUload());
-      TXBuffer += F("% (LC=");
-      TXBuffer += String(getLoopCountPerSec());
-      TXBuffer += ')';
-    }
-
-    addRowLabel(F("Free Mem"));
-    TXBuffer += String(freeMem);
-    TXBuffer += " (";
-    TXBuffer += String(lowestRAM);
-    TXBuffer += F(" - ");
-    TXBuffer += String(lowestRAMfunction);
-    TXBuffer += ')';
-    addRowLabel(F("Free Stack"));
-    TXBuffer += String(getCurrentFreeStack());
-    TXBuffer += " (";
-    TXBuffer += String(lowestFreeStack);
-    TXBuffer += F(" - ");
-    TXBuffer += String(lowestFreeStackfunction);
-    TXBuffer += ')';
-
-    addRowLabel(F("IP"));
-    TXBuffer += formatIP(ip);
-
-    addRowLabel(F("Wifi RSSI"));
-    if (WiFiConnected())
-    {
-      TXBuffer += String(WiFi.RSSI());
-      TXBuffer += F(" dB (");
-      TXBuffer += WiFi.SSID();
-      TXBuffer += ')';
-    }
-
-    #ifdef FEATURE_MDNS
-      html_TR_TD();
-      TXBuffer += F("mDNS:<TD><a href='http://");
-      TXBuffer += WifiGetHostname();
-      TXBuffer += F(".local'>");
-      TXBuffer += WifiGetHostname();
-      TXBuffer += F(".local</a>");
-      html_TD(3);
-    #endif
-    html_TR_TD();
-    html_TD();
-    addButton(F("sysinfo"), F("More info"));
-
-    html_end_table();
-    html_BR();
-    html_BR();
-    html_table_class_multirow_noborder();
-    html_TR();
-    html_table_header(F("Node List"));
-    html_table_header("Name");
-    html_table_header(F("Build"));
-    html_table_header("Type");
-    html_table_header("IP", 160); // Should fit "255.255.255.255"
-    html_table_header("Age");
-    for (NodesMap::iterator it = Nodes.begin(); it != Nodes.end(); ++it)
-    {
-      if (it->second.ip[0] != 0)
-      {
-        bool isThisUnit = it->first == Settings.Unit;
-        if (isThisUnit)
-          html_TR_TD_highlight();
-        else
-          html_TR_TD();
-
-        TXBuffer += F("Unit ");
-        TXBuffer += String(it->first);
-        html_TD();
-        if (isThisUnit)
-          TXBuffer += Settings.Name;
-        else
-          TXBuffer += it->second.nodeName;
-        html_TD();
-        if (it->second.build)
-          TXBuffer += String(it->second.build);
-        html_TD();
-        if (it->second.nodeType)
-          switch (it->second.nodeType)
-          {
-            case NODE_TYPE_ID_ESP_EASY_STD:
-              TXBuffer += F("ESP Easy");
-              break;
-            case NODE_TYPE_ID_ESP_EASYM_STD:
-              TXBuffer += F("ESP Easy Mega");
-              break;
-            case NODE_TYPE_ID_ESP_EASY32_STD:
-              TXBuffer += F("ESP Easy 32");
-              break;
-            case NODE_TYPE_ID_ARDUINO_EASY_STD:
-              TXBuffer += F("Arduino Easy");
-              break;
-            case NODE_TYPE_ID_NANO_EASY_STD:
-              TXBuffer += F("Nano Easy");
-              break;
-          }
-        html_TD();
-        html_add_wide_button_prefix();
-        TXBuffer += F("http://");
-        TXBuffer += it->second.ip.toString();
-        TXBuffer += "'>";
-        TXBuffer += it->second.ip.toString();
-        TXBuffer += "</a>";
-        html_TD();
-        TXBuffer += String( it->second.age);
+      if (Plugin_id[DeviceIndex] != 0) {
+        deviceName = getPluginNameFromDeviceIndex(DeviceIndex);
       }
     }
+    LoadTaskSettings(x);
+    TXBuffer += F("<option value='");
+    TXBuffer += x;
+    TXBuffer += '\'';
 
-    html_end_table();
-    html_end_form();
-
-    printWebString = "";
-    printToWeb = false;
-    sendHeadandTail_stdtemplate(_TAIL);
-    TXBuffer.endStream();
-
-  }
-  else
-  {
-    //TODO: move this to handle_tools, from where it is actually called?
-
-    // have to disconnect or reboot from within the main loop
-    // because the webconnection is still active at this point
-    // disconnect here could result into a crash/reboot...
-    if (strcasecmp_P(sCommand.c_str(), PSTR("wifidisconnect")) == 0)
-    {
-      addLog(LOG_LEVEL_INFO, F("WIFI : Disconnecting..."));
-      cmd_within_mainloop = CMD_WIFI_DISCONNECT;
+    if (choice == x) {
+      TXBuffer += F(" selected");
     }
+
+    if (Settings.TaskDeviceNumber[x] == 0) {
+      addDisabled();
+    }
+    TXBuffer += '>';
+    TXBuffer += x + 1;
+    TXBuffer += F(" - ");
+    TXBuffer += deviceName;
+    TXBuffer += F(" - ");
+    TXBuffer += ExtraTaskSettings.TaskDeviceName;
+    TXBuffer += F("</option>");
+  }
+}
+
+// ********************************************************************************
+// Add a Value select dropdown list, based on TaskIndex
+// ********************************************************************************
+void addTaskValueSelect(const String& name, int choice, byte TaskIndex)
+{
+  TXBuffer += F("<select id='selectwidth' name='");
+  TXBuffer += name;
+  TXBuffer += "'>";
+
+  byte DeviceIndex = getDeviceIndex(Settings.TaskDeviceNumber[TaskIndex]);
+
+  for (byte x = 0; x < Device[DeviceIndex].ValueCount; x++)
+  {
+    TXBuffer += F("<option value='");
+    TXBuffer += x;
+    TXBuffer += '\'';
+
+    if (choice == x) {
+      TXBuffer += F(" selected");
+    }
+<<<<<<< HEAD
 
     if (strcasecmp_P(sCommand.c_str(), PSTR("reboot")) == 0)
     {
@@ -5490,1042 +5363,108 @@ void handleNotFound() {
     message += F("\n VALUE:");
     message += WebServer.arg(i);
     message += '\n';
+=======
+    TXBuffer += '>';
+    TXBuffer += ExtraTaskSettings.TaskDeviceValueNames[x];
+    TXBuffer += F("</option>");
+>>>>>>> 79975d385bc2353f4f4297249fff1d850b962309
   }
-  WebServer.send(404, F("text/plain"), message);
 }
 
-
-//********************************************************************************
-// Web Interface Setup Wizard
-//********************************************************************************
-void handle_setup() {
-  checkRAM(F("handle_setup"));
-  // Do not check client IP range allowed.
-  TXBuffer.startStream();
-  sendHeadandTail(F("TmplAP"));
-
-  addHeader(false,TXBuffer.buf);
-
-  if (WiFiConnected())
-  {
-    addHtmlError(SaveSettings());
-    String host = formatIP(WiFi.localIP());
-    TXBuffer += F("<BR>ESP is connected and using IP Address: <BR><h1>");
-    TXBuffer += host;
-    TXBuffer += F("</h1><BR><BR>Connect your laptop / tablet / phone<BR>back to your main Wifi network and<BR><BR>");
-    TXBuffer += F("<a class='button' href='http://");
-    TXBuffer += host;
-    TXBuffer += F("/config'>Proceed to main config</a><BR><BR>");
-
-    sendHeadandTail(F("TmplAP"),true);
-    TXBuffer.endStream();
-
-    wifiSetup = false;
-    //setWifiMode(WIFI_STA);  //this forces the iPhone to exit safari and this page was never displayed
-    timerAPoff = millis() + 60000L;  //switch the AP off in 1 minute
-    return;
-  }
-
-  static byte status = 0;
-  static int n = 0;
-  static byte refreshCount = 0;
-  String ssid = WebServer.arg(F("ssid"));
-  String other = WebServer.arg(F("other"));
-  String password = WebServer.arg(F("pass"));
-
-  if (other.length() != 0)
-  {
-    ssid = other;
-  }
-
-  // if ssid config not set and params are both provided
-  if (status == 0 && ssid.length() != 0 /*&& strcasecmp(SecuritySettings.WifiSSID, "ssid") == 0 */)
-  {
-    safe_strncpy(SecuritySettings.WifiKey, password.c_str(), sizeof(SecuritySettings.WifiKey));
-    safe_strncpy(SecuritySettings.WifiSSID, ssid.c_str(), sizeof(SecuritySettings.WifiSSID));
-    wifiSetupConnect = true;
-    if (loglevelActiveFor(LOG_LEVEL_INFO)) {
-      String reconnectlog = F("WIFI : Credentials Changed, retry connection. SSID: ");
-      reconnectlog += ssid;
-      addLog(LOG_LEVEL_INFO, reconnectlog);
-    }
-    status = 1;
-    refreshCount = 0;
-  }
-
-  TXBuffer += F("<BR><h1>Wifi Setup wizard</h1>");
-  html_add_form();
-
-  if (status == 0)  // first step, scan and show access points within reach...
-  {
-    WiFiMode_t cur_wifimode = WiFi.getMode();
-    if (n == 0)
-      n = WiFi.scanNetworks(false, true);
-    setWifiMode(cur_wifimode);
-    if (n == 0)
-      TXBuffer += F("No Access Points found");
-    else
-    {
-      html_table_class_multirow();
-      html_TR();
-      html_table_header(F("Pick"), 50);
-      html_table_header(F("Network info"));
-      for (int i = 0; i < n; ++i)
-      {
-        html_TR_TD(); TXBuffer += F("<label class='container2'>");
-        TXBuffer += F("<input type='radio' name='ssid' value='");
-        {
-          String escapeBuffer = WiFi.SSID(i);
-          htmlStrongEscape(escapeBuffer);
-          TXBuffer += escapeBuffer;
-        }
-        TXBuffer += '\'';
-        if (WiFi.SSID(i) == ssid)
-          TXBuffer += F(" checked ");
-        TXBuffer += F("><span class='dotmark'></span></label><TD>");
-        TXBuffer += formatScanResult(i, "<BR>");
-        TXBuffer += "";
-      }
-      html_end_table();
-    }
-
-    TXBuffer += F("<BR><label class='container2'>other SSID:<input type='radio' name='ssid' id='other_ssid' value='other' ><span class='dotmark'></span></label>");
-    TXBuffer += F("<input class='wide' type ='text' name='other' value='");
-    TXBuffer += other;
-    TXBuffer += F("'><BR><BR>");
-
-    addFormSeparator (2);
-
-    TXBuffer += F("<BR>Password:<BR><input class='wide' type ='text' name='pass' value='");
-    TXBuffer += password;
-    TXBuffer += F("'><BR><BR>");
-
-    addSubmitButton(F("Connect"),"");
-  }
-
-  if (status == 1)  // connecting stage...
-  {
-    if (refreshCount > 0)
-    {
-      status = 0;
-//      safe_strncpy(SecuritySettings.WifiSSID, "ssid", sizeof(SecuritySettings.WifiSSID));
-//      SecuritySettings.WifiKey[0] = 0;
-      TXBuffer += F("<a class='button' href='setup'>Back to Setup</a><BR><BR>");
-    }
-    else
-    {
-      int wait = 20;
-      if (refreshCount != 0)
-        wait = 3;
-      TXBuffer += F("Please wait for <h1 id='countdown'>20..</h1>");
-      TXBuffer += F("<script type='text/JavaScript'>");
-      TXBuffer += F("function timedRefresh(timeoutPeriod) {");
-      TXBuffer += F(   "var timer = setInterval(function() {");
-      TXBuffer += F(   "if (timeoutPeriod > 0) {");
-      TXBuffer += F(       "timeoutPeriod -= 1;");
-      TXBuffer += F(       "document.getElementById('countdown').innerHTML = timeoutPeriod + '..' + '<br />';");
-      TXBuffer += F(   "} else {");
-      TXBuffer += F(       "clearInterval(timer);");
-      TXBuffer += F(            "window.location.href = window.location.href;");
-      TXBuffer += F(       "};");
-      TXBuffer += F(   "}, 1000);");
-      TXBuffer += F("};");
-      TXBuffer += F("timedRefresh(");
-      TXBuffer += wait;
-      TXBuffer += F(");");
-      html_add_script_end();
-      TXBuffer += F("seconds while trying to connect");
-    }
-    refreshCount++;
-  }
-
-  html_end_form();
-  sendHeadandTail(F("TmplAP"),true);
-  TXBuffer.endStream();
-  delay(10);
-}
-
-//********************************************************************************
-// Create pre-defined config selector
-//********************************************************************************
-void addPreDefinedConfigSelector() {
-  DeviceModel active_model = ResetFactoryDefaultPreference.getDeviceModel();
-  addSelector_Head("fdm", true);
-  for (byte x = 0; x < DeviceModel_MAX; ++x) {
-    DeviceModel model = static_cast<DeviceModel>(x);
-    addSelector_Item(
-      getDeviceModelString(model),
-      x,
-      model == active_model,
-      !modelMatchingFlashSize(model),
-      ""
-    );
-  }
-  addSelector_Foot();
-}
-
-//********************************************************************************
-// Web Interface Factory Reset
-//********************************************************************************
-void handle_factoryreset() {
-  checkRAM(F("handle_factoryreset"));
-  if (!isLoggedIn()) return;
-  navMenuIndex = MENU_INDEX_TOOLS;
-  TXBuffer.startStream();
-  sendHeadandTail_stdtemplate(_HEAD);
-  html_add_form();
-  html_table_class_normal();
-  html_TR();
-  addFormHeader(F("Factory Reset"));
-
-  if (WebServer.hasArg("fdm")) {
-    DeviceModel model = static_cast<DeviceModel>(getFormItemInt("fdm"));
-    if (modelMatchingFlashSize(model)) {
-      setFactoryDefault(model);
-    }
-  }
-  if (WebServer.hasArg("kun")) {
-    ResetFactoryDefaultPreference.keepUnitName(isFormItemChecked("kun"));
-  }
-  if (WebServer.hasArg("kw")) {
-    ResetFactoryDefaultPreference.keepWiFi(isFormItemChecked("kw"));
-  }
-  if (WebServer.hasArg("knet")) {
-    ResetFactoryDefaultPreference.keepNetwork(isFormItemChecked("knet"));
-  }
-  if (WebServer.hasArg("kntp")) {
-    ResetFactoryDefaultPreference.keepNTP(isFormItemChecked("kntp"));
-  }
-  if (WebServer.hasArg("klog")) {
-    ResetFactoryDefaultPreference.keepLogSettings(isFormItemChecked("klog"));
-  }
-
-  if (WebServer.hasArg(F("savepref"))) {
-    // User choose a pre-defined config and wants to save it as the new default.
-    applyFactoryDefaultPref();
-    addHtmlError(SaveSettings());
-  }
-  if (WebServer.hasArg(F("performfactoryreset"))) {
-      // User confirmed to really perform the reset.
-      applyFactoryDefaultPref();
-      // No need to call SaveSettings(); ResetFactory() will save the new settings.
-      ResetFactory();
-  } else {
-    // Nothing chosen yet, show options.
-    addTableSeparator(F("Settings to keep"), 2, 3);
-
-    addRowLabel(F("Keep Unit/Name"));
-    addCheckBox("kun", ResetFactoryDefaultPreference.keepUnitName());
-
-    addRowLabel(F("Keep WiFi config"));
-    addCheckBox("kw", ResetFactoryDefaultPreference.keepWiFi());
-
-    addRowLabel(F("Keep Network config"));
-    addCheckBox("knet", ResetFactoryDefaultPreference.keepNetwork());
-
-    addRowLabel(F("Keep NTP/DST config"));
-    addCheckBox("kntp", ResetFactoryDefaultPreference.keepNTP());
-
-    addRowLabel(F("Keep log config"));
-    addCheckBox("klog", ResetFactoryDefaultPreference.keepLogSettings());
-
-    addTableSeparator(F("Pre-defined configurations"), 2, 3);
-    addRowLabel(F("Pre-defined config"));
-    addPreDefinedConfigSelector();
-
-
-    html_TR_TD();
-    html_TD();
-    addSubmitButton(F("Save Preferences"), F("savepref"));
-
-
-    html_TR_TD_height(30);
-
-    addTableSeparator(F("Immediate full reset"), 2, 3);
-    addRowLabel(F("Erase settings files"));
-    addSubmitButton(F("Factory Reset"), F("performfactoryreset"), F("red"));
-  }
-
-  html_end_table();
-  html_end_form();
-  sendHeadandTail_stdtemplate(_TAIL);
-  TXBuffer.endStream();
-
-}
-
-//********************************************************************************
-// Web Interface rules page
-//********************************************************************************
-void handle_rules() {
-  checkRAM(F("handle_rules"));
-  if (!isLoggedIn() || !Settings.UseRules) return;
-  navMenuIndex = MENU_INDEX_RULES;
-  TXBuffer.startStream();
-  sendHeadandTail_stdtemplate();
-  static byte currentSet = 1;
-
-  const byte rulesSet = getFormItemInt(F("set"), 1);
-
-  #if defined(ESP8266)
-    String fileName = F("rules");
-  #endif
-  #if defined(ESP32)
-    String fileName = F("/rules");
-  #endif
-  fileName += rulesSet;
-  fileName += F(".txt");
-
-
-  checkRAM(F("handle_rules"));
-
-
-
-  if (WebServer.args() > 0)
-  {
-    String log = F("Rules : Save rulesSet: ");
-    log += rulesSet;
-    log += F(" currentSet: ");
-    log += currentSet;
-
-    if (currentSet == rulesSet) // only save when the dropbox was not used to change set
-    {
-      String rules = WebServer.arg(F("rules"));
-      log += F(" rules.length(): ");
-      log += rules.length();
-      if (rules.length() > RULES_MAX_SIZE)
-        TXBuffer += F("<span style=\"color:red\">Data was not saved, exceeds web editor limit!</span>");
-      else
-      {
-
-        // if (RTC.flashDayCounter > MAX_FLASHWRITES_PER_DAY)
-        // {
-        //   String log = F("FS   : Daily flash write rate exceeded! (powercyle to reset this)");
-        //   addLog(LOG_LEVEL_ERROR, log);
-        //   TXBuffer += F("<span style=\"color:red\">Error saving to flash!</span>");
-        // }
-        // else
-        // {
-          fs::File f = SPIFFS.open(fileName, "w");
-          if (f)
-          {
-            log += F(" Write to file: ");
-            log += fileName;
-            f.print(rules);
-            f.close();
-            // flashCount();
-          }
-        // }
-      }
-    }
-    else // changed set, check if file exists and create new
-    {
-      if (!SPIFFS.exists(fileName))
-      {
-        log += F(" Create new file: ");
-        log += fileName;
-        fs::File f = SPIFFS.open(fileName, "w");
-        if (f) f.close();
-      }
-    }
-    addLog(LOG_LEVEL_INFO, log);
-
-    log = F(" Webserver args:");
-    for (int i = 0; i < WebServer.args(); ++i) {
-      log += ' ';
-      log += i;
-      log += F(": '");
-      log += WebServer.argName(i);
-      log += F("' length: ");
-      log += WebServer.arg(i).length();
-    }
-    addLog(LOG_LEVEL_INFO, log);
-  }
-
-  if (rulesSet != currentSet)
-    currentSet = rulesSet;
-
-  TXBuffer += F("<form name = 'frmselect' method = 'post'>");
-  html_table_class_normal();
-  html_TR();
-  html_table_header(F("Rules"));
-
-  byte choice = rulesSet;
-  String options[RULESETS_MAX];
-  int optionValues[RULESETS_MAX];
-  for (byte x = 0; x < RULESETS_MAX; x++)
-  {
-    options[x] = F("Rules Set ");
-    options[x] += x + 1;
-    optionValues[x] = x + 1;
-  }
-
-   html_TR_TD();
-  addSelector(F("set"), RULESETS_MAX, options, optionValues, NULL, choice, true);
-  addHelpButton(F("Tutorial_Rules"));
-
-  // load form data from flash
-
-  int size = 0;
-  fs::File f = SPIFFS.open(fileName, "r+");
-  if (f)
-  {
-    size = f.size();
-    if (size > RULES_MAX_SIZE)
-       TXBuffer += F("<span style=\"color:red\">Filesize exceeds web editor limit!</span>");
-    else
-    {
-       html_TR_TD(); TXBuffer += F("<textarea name='rules' rows='30' wrap='off'>");
-      while (f.available())
-      {
-        String c((char)f.read());
-        htmlEscape(c);
-         TXBuffer += c;
-      }
-       TXBuffer += F("</textarea>");
-    }
-    f.close();
-  }
-
-  html_TR_TD(); TXBuffer += F("Current size: ");
-  TXBuffer += size;
-  TXBuffer += F(" characters (Max ");
-  TXBuffer += RULES_MAX_SIZE;
-  TXBuffer += ')';
-
-  addFormSeparator(2);
-
-  html_TR_TD();
-  addSubmitButton();
-  addButton(fileName, F("Download to file"));
-  html_end_table();
-  html_end_form();
-  sendHeadandTail_stdtemplate(true);
-  TXBuffer.endStream();
-
-  checkRuleSets();
-}
-
-
-//********************************************************************************
-// Web Interface sysinfo page
-//********************************************************************************
-void handle_sysinfo() {
-  checkRAM(F("handle_sysinfo"));
-  if (!isLoggedIn()) return;
-  navMenuIndex = MENU_INDEX_TOOLS;
-  html_reset_copyTextCounter();
-  TXBuffer.startStream();
-  sendHeadandTail_stdtemplate();
-
-  int freeMem = ESP.getFreeHeap();
-
-  addHeader(true,  TXBuffer.buf);
-  TXBuffer += printWebString;
-  TXBuffer += F("<form>");
-
-  // the table header
-  html_table_class_normal();
-
-  // Not using addFormHeader() to get the copy button on the same header line as 2nd column
-  html_TR();
-  html_table_header(F("System Info"), 225);
-  TXBuffer += "<TH>"; // Needed to get the copy button on the same header line.
-  addCopyButton(F("copyText"), F("\\n"), F("Copy info to clipboard") );
-
-  TXBuffer += githublogo;
-  html_add_script(false);
-  TXBuffer += DATA_GITHUB_CLIPBOARD_JS;
-  html_add_script_end();
-
-  addRowLabel(F("Unit"));
-  TXBuffer += Settings.Unit;
-
-  if (Settings.UseNTP)
-  {
-     addRowLabel(F("Local Time"));
-     TXBuffer += getDateTimeString('-', ':', ' ');
-  }
-
-  addRowLabel(F("Uptime"));
-  {
-    char strUpTime[40];
-    int minutes = wdcounter / 2;
-    int days = minutes / 1440;
-    minutes = minutes % 1440;
-    int hrs = minutes / 60;
-    minutes = minutes % 60;
-    sprintf_P(strUpTime, PSTR("%d days %d hours %d minutes"), days, hrs, minutes);
-    TXBuffer += strUpTime;
-  }
-
-  addRowLabel(F("Load"));
-  if (wdcounter > 0)
-  {
-     TXBuffer += getCPUload();
-     TXBuffer += F("% (LC=");
-     TXBuffer += getLoopCountPerSec();
-     TXBuffer += ')';
-  }
-
-  addRowLabel(F("Free Mem"));
-  TXBuffer += freeMem;
-  TXBuffer += " (";
-  TXBuffer += lowestRAM;
-  TXBuffer += F(" - ");
-  TXBuffer += lowestRAMfunction;
-  TXBuffer += ')';
-  addRowLabel(F("Free Stack"));
-  TXBuffer += getCurrentFreeStack();
-  TXBuffer += " (";
-  TXBuffer += lowestFreeStack;
-  TXBuffer += F(" - ");
-  TXBuffer += lowestFreeStackfunction;
-  TXBuffer += ')';
-
-  addRowLabel(F("Boot"));
-  TXBuffer += getLastBootCauseString();
-  TXBuffer += " (";
-  TXBuffer += RTC.bootCounter;
-  TXBuffer += ')';
-  addRowLabel(F("Reset Reason"));
-  TXBuffer += getResetReasonString();
-
-  addTableSeparator(F("Network"), 2, 3, F("Wifi"));
-
-  if (WiFiConnected())
-  {
-     addRowLabel(F("Wifi"));
-    #if defined(ESP8266)
-      byte PHYmode = wifi_get_phy_mode();
-    #endif
-    #if defined(ESP32)
-      byte PHYmode = 3; // wifi_get_phy_mode();
-    #endif
-    switch (PHYmode)
-    {
-      case 1:
-         TXBuffer += F("802.11B");
-        break;
-      case 2:
-         TXBuffer += F("802.11G");
-        break;
-      case 3:
-         TXBuffer += F("802.11N");
-        break;
-    }
-     TXBuffer += F(" (RSSI ");
-     TXBuffer += WiFi.RSSI();
-     TXBuffer += F(" dB)");
-  }
-  addRowLabel(F("IP config"));
-  TXBuffer += useStaticIP() ? F("Static") : F("DHCP");
-
-  addRowLabel(F("IP / subnet"));
-  TXBuffer += formatIP(WiFi.localIP());
-  TXBuffer += F(" / ");
-  TXBuffer += formatIP(WiFi.subnetMask());
-
-  addRowLabel(F("GW"));
-  TXBuffer += formatIP(WiFi.gatewayIP());
-
-  {
-    addRowLabel(F("Client IP"));
-    WiFiClient client(WebServer.client());
-    TXBuffer += formatIP(client.remoteIP());
-  }
-
-  addRowLabel(F("DNS"));
-  TXBuffer += formatIP(WiFi.dnsIP(0));
-  TXBuffer += F(" / ");
-  TXBuffer += formatIP(WiFi.dnsIP(1));
-
-  addRowLabel(F("Allowed IP Range"));
-  TXBuffer += describeAllowedIPrange();
-
-  addRowLabel(F("STA MAC"));
-
-  {
-    uint8_t mac[] = {0, 0, 0, 0, 0, 0};
-    uint8_t* macread = WiFi.macAddress(mac);
-    char macaddress[20];
-    formatMAC(macread, macaddress);
-    TXBuffer += macaddress;
-
-    addRowLabel(F("AP MAC"));
-    macread = WiFi.softAPmacAddress(mac);
-    formatMAC(macread, macaddress);
-    TXBuffer += macaddress;
-  }
-
-  addRowLabel(F("SSID"));
-  TXBuffer += WiFi.SSID();
-  TXBuffer += " (";
-  TXBuffer += WiFi.BSSIDstr();
-  TXBuffer += ')';
-
-  addRowLabel(F("Channel"));
-  TXBuffer += WiFi.channel();
-
-  addRowLabel(F("Connected"));
-  TXBuffer += format_msec_duration(timeDiff(lastConnectMoment, millis()));
-
-  addRowLabel(F("Last Disconnect Reason"));
-  TXBuffer += getLastDisconnectReason();
-
-  addRowLabel(F("Number reconnects"));
-  TXBuffer += wifi_reconnects;
-
-  addTableSeparator(F("Firmware"), 2, 3);
-
-  addRowLabel_copy(F("Build"));
-  TXBuffer += BUILD;
-  TXBuffer += ' ';
-  TXBuffer += F(BUILD_NOTES);
-
-  addRowLabel_copy(F("Libraries"));
-  TXBuffer += getSystemLibraryString();
-
-  addRowLabel_copy(F("GIT version"));
-  TXBuffer += BUILD_GIT;
-
-  addRowLabel_copy(F("Plugins"));
-  TXBuffer += deviceCount + 1;
-  TXBuffer += getPluginDescriptionString();
-
-  bool filenameDummy = String(CRCValues.binaryFilename).startsWith(F("ThisIsTheDummy"));
-  if (!filenameDummy) {
-    addRowLabel(F("Build Md5"));
-    for (byte i = 0; i<16; i++)    TXBuffer += String(CRCValues.compileTimeMD5[i],HEX);
-
-     addRowLabel(F("Md5 check"));
-    if (! CRCValues.checkPassed())
-       TXBuffer += F("<font color = 'red'>fail !</font>");
-    else  TXBuffer += F("passed.");
-  }
-  addRowLabel_copy(F("Build time"));
-  TXBuffer += String(CRCValues.compileDate);
-  TXBuffer += ' ';
-  TXBuffer += String(CRCValues.compileTime);
-
-  addRowLabel_copy(F("Binary filename"));
-  if (filenameDummy) {
-    TXBuffer += F("<b>Self built!</b>");
-  } else {
-    TXBuffer += String(CRCValues.binaryFilename);
-  }
-
-  addTableSeparator(F("System Status"), 2, 3);
-  {
-    // Actual Loglevel
-    addRowLabel(F("Syslog Log Level"));
-    TXBuffer += getLogLevelDisplayString(Settings.SyslogLevel);
-    addRowLabel(F("Serial Log Level"));
-    TXBuffer += getLogLevelDisplayString(getSerialLogLevel());
-    addRowLabel(F("Web Log Level"));
-    TXBuffer += getLogLevelDisplayString(getWebLogLevel());
-    #ifdef FEATURE_SD
-    addRowLabel(F("SD Log Level"));
-    TXBuffer += getLogLevelDisplayString(Settings.SDLogLevel);
-    #endif
-  }
-
-
-  addTableSeparator(F("ESP board"), 2, 3);
-
-  addRowLabel(F("ESP Chip ID"));
-  #if defined(ESP8266)
-    TXBuffer += ESP.getChipId();
-    TXBuffer += F(" (0x");
-    String espChipId(ESP.getChipId(), HEX);
-    espChipId.toUpperCase();
-    TXBuffer += espChipId;
-    TXBuffer += ')';
-
-    addRowLabel(F("ESP Chip Freq"));
-    TXBuffer += ESP.getCpuFreqMHz();
-    TXBuffer += F(" MHz");
-  #endif
-  #if defined(ESP32)
-    TXBuffer += F(" (0x");
-    uint64_t chipid=ESP.getEfuseMac();   //The chip ID is essentially its MAC address(length: 6 bytes).
-    uint32_t ChipId1 = (uint16_t)(chipid>>32);
-    String espChipIdS(ChipId1, HEX);
-    espChipIdS.toUpperCase();
-    TXBuffer += espChipIdS;
-    ChipId1 = (uint32_t)chipid;
-    String espChipIdS1(ChipId1, HEX);
-    espChipIdS1.toUpperCase();
-    TXBuffer += espChipIdS1;
-    TXBuffer += ')';
-
-    addRowLabel(F("ESP Chip Freq"));
-    TXBuffer += ESP.getCpuFreqMHz();
-    TXBuffer += F(" MHz");
-  #endif
-  addRowLabel(F("ESP Board Name"));
-  TXBuffer += ARDUINO_BOARD;
-
-  addTableSeparator(F("Storage"), 2, 3);
-
-  addRowLabel(F("Flash Chip ID"));
-  #if defined(ESP8266)
-    uint32_t flashChipId = ESP.getFlashChipId();
-    // Set to HEX may be something like 0x1640E0.
-    // Where manufacturer is 0xE0 and device is 0x4016.
-    TXBuffer += F("Vendor: ");
-    TXBuffer += formatToHex(flashChipId & 0xFF);
-
-    #ifdef PUYASUPPORT
-    if (ESP.flashIsPuya()) {
-      TXBuffer += F(" (PUYA, supported)");
-    }
-    #else
-    if ((flashChipId & 0x000000ff) == 0x85)  // 0x146085 PUYA
-    {
-      TXBuffer += F(" (PUYA");
-      TXBuffer += F(HTML_SYMBOL_WARNING);
-      TXBuffer += ')';
-    }
-    #endif
-    TXBuffer += F(" Device: ");
-    uint32_t flashDevice = (flashChipId & 0xFF00) | ((flashChipId >> 16) & 0xFF);
-    TXBuffer += formatToHex(flashDevice);
-  #endif
-  uint32_t realSize = getFlashRealSizeInBytes();
-  uint32_t ideSize = ESP.getFlashChipSize();
-
-  addRowLabel(F("Flash Chip Real Size"));
-  TXBuffer += realSize / 1024;
-  TXBuffer += F(" kB");
-
-  addRowLabel(F("Flash IDE Size"));
-  TXBuffer += ideSize / 1024;
-  TXBuffer += F(" kB");
-
-  // Please check what is supported for the ESP32
-  #if defined(ESP8266)
-    addRowLabel(F("Flash IDE speed"));
-    TXBuffer += ESP.getFlashChipSpeed() / 1000000;
-    TXBuffer += F(" MHz");
-
-    FlashMode_t ideMode = ESP.getFlashChipMode();
-    addRowLabel(F("Flash IDE mode"));
-    switch (ideMode) {
-      case FM_QIO:   TXBuffer += F("QIO");  break;
-      case FM_QOUT:  TXBuffer += F("QOUT"); break;
-      case FM_DIO:   TXBuffer += F("DIO");  break;
-      case FM_DOUT:  TXBuffer += F("DOUT"); break;
-      default:
-          TXBuffer += F("Unknown"); break;
-    }
-  #endif
-
-   addRowLabel(F("Flash Writes"));
-   TXBuffer += RTC.flashDayCounter;
-   TXBuffer += F(" daily / ");
-   TXBuffer += RTC.flashCounter;
-   TXBuffer += F(" boot");
-
-   addRowLabel(F("Sketch Size"));
-  #if defined(ESP8266)
-   TXBuffer += ESP.getSketchSize() / 1024;
-   TXBuffer += F(" kB (");
-   TXBuffer += ESP.getFreeSketchSpace() / 1024;
-   TXBuffer += F(" kB free)");
-  #endif
-
-  addRowLabel(F("SPIFFS Size"));
-  {
-  #if defined(ESP8266)
-    fs::FSInfo fs_info;
-    SPIFFS.info(fs_info);
-    TXBuffer += fs_info.totalBytes / 1024;
-    TXBuffer += F(" kB (");
-    TXBuffer += (fs_info.totalBytes - fs_info.usedBytes) / 1024;
-    TXBuffer += F(" kB free)");
-  #endif
-  }
-
-  if (showSettingsFileLayout) {
-    addTableSeparator(F("Settings Files"), 2, 3);
-    html_TR_TD();
-    TXBuffer += F("Layout Settings File");
-    html_TD();
-    getConfig_dat_file_layout();
-    html_TR_TD();
-    html_TD();
-    TXBuffer += F("(offset / size per item / index)");
-
-    for (int st = 0; st < SettingsType_MAX; ++st) {
-      SettingsType settingsType = static_cast<SettingsType>(st);
-      html_TR_TD();
-      TXBuffer += getSettingsTypeString(settingsType);
-      html_TD();
-      getStorageTableSVG(settingsType);
-    }
-  }
-
-  #ifdef ESP32
-   addTableSeparator(F("Partitions"), 2, 3,
-     F("https://dl.espressif.com/doc/esp-idf/latest/api-guides/partition-tables.html"));
-
-   addRowLabel(F("Data Partition Table"));
-//   TXBuffer += getPartitionTableHeader(F(" - "), F("<BR>"));
-//   TXBuffer += getPartitionTable(ESP_PARTITION_TYPE_DATA, F(" - "), F("<BR>"));
-   getPartitionTableSVG(ESP_PARTITION_TYPE_DATA, 0x5856e6);
-
-   addRowLabel(F("App Partition Table"));
-//   TXBuffer += getPartitionTableHeader(F(" - "), F("<BR>"));
-//   TXBuffer += getPartitionTable(ESP_PARTITION_TYPE_APP , F(" - "), F("<BR>"));
-   getPartitionTableSVG(ESP_PARTITION_TYPE_APP, 0xab56e6);
-  #endif
-
-  html_end_table();
-  html_end_form();
-  sendHeadandTail_stdtemplate(true);
-  TXBuffer.endStream();
-}
-
-void addSysVar_html(const String& input) {
-  html_TR_TD();
-  TXBuffer += F("<pre>"); // Make monospaced (<tt> tag?)
-  TXBuffer += F("<xmp>"); // Make sure HTML code is escaped. Tag depricated??
-  TXBuffer += input;
-  TXBuffer += F("</xmp>");
-  TXBuffer += F("</pre>");
-  html_TD();
-  String replacement(input); // Make deepcopy for replacement
-  parseSystemVariables(replacement, false); // Not URL encoded
-  parseStandardConversions(replacement, false);
-  TXBuffer += replacement;
-  html_TD();
-  replacement = input;
-  parseSystemVariables(replacement, true); // URL encoded
-  parseStandardConversions(replacement, true);
-  TXBuffer += replacement;
-  delay(0);
-}
-
-
-//********************************************************************************
-// Web Interface sysvars showing all system vars and their value.
-//********************************************************************************
-void handle_sysvars() {
-  checkRAM(F("handle_sysvars"));
-  if (!isLoggedIn()) return;
-  TXBuffer.startStream();
-  sendHeadandTail_stdtemplate();
-
-  addHeader(true,  TXBuffer.buf);
-
-  html_BR();
-  TXBuffer += F("<p>This page may load slow.<BR>Do not load too often, since it may affect performance of the node.</p>");
-  html_BR();
-
-  // the table header
-  html_table_class_normal();
-  html_TR();
-  html_table_header(F("System Variables"));
-  html_table_header(F("Normal"));
-  html_table_header(F("URL encoded"), F("ESPEasy_System_Variables"), 0);
-
-  addTableSeparator(F("Constants"), 3, 3);
-  addSysVar_html(F("%CR%"));
-  addSysVar_html(F("%LF%"));
-  addSysVar_html(F("%SP%"));
-  addSysVar_html(F("%R%"));
-  addSysVar_html(F("%N%"));
-
-  addTableSeparator(F("Network"), 3, 3);
-  addSysVar_html(F("%mac%"));
-#if defined(ESP8266)
-  addSysVar_html(F("%mac_int%"));
-#endif
-  addSysVar_html(F("%ip4%"));
-  addSysVar_html(F("%ip%"));
-  addSysVar_html(F("%rssi%"));
-  addSysVar_html(F("%ssid%"));
-  addSysVar_html(F("%bssid%"));
-  addSysVar_html(F("%wi_ch%"));
-
-  addTableSeparator(F("System"), 3, 3);
-  addSysVar_html(F("%unit%"));
-  addSysVar_html(F("%sysload%"));
-  addSysVar_html(F("%sysheap%"));
-  addSysVar_html(F("%sysname%"));
-#if FEATURE_ADC_VCC
-  addSysVar_html(F("%vcc%"));
-#endif
-
-  addTableSeparator(F("System status"), 3, 3);
-
-  addSysVar_html(F("%iswifi%"));
-  addSysVar_html(F("%isntp%"));
-  addSysVar_html(F("%ismqtt%"));
-#ifdef USES_P037
-  addSysVar_html(F("%ismqttimp%"));
-#endif // USES_P037
-
-  addTableSeparator(F("Time"), 3, 3);
-  addSysVar_html(F("%lcltime%"));
-  addSysVar_html(F("%lcltime_am%"));
-  addSysVar_html(F("%systm_hm%"));
-  addSysVar_html(F("%systm_hm_am%"));
-  addSysVar_html(F("%systime%"));
-  addSysVar_html(F("%systime_am%"));
-  addSysVar_html(F("%sysbuild_date%"));
-  addSysVar_html(F("%sysbuild_time%"));
-  addTableSeparator(F("System"), 3, 3);
-  addSysVar_html(F("%sysyear%  // %sysyear_0%"));
-  addSysVar_html(F("%sysyears%"));
-  addSysVar_html(F("%sysmonth% // %sysmonth_0%"));
-  addSysVar_html(F("%sysday%   // %sysday_0%"));
-  addSysVar_html(F("%syshour%  // %syshour_0%"));
-  addSysVar_html(F("%sysmin%   // %sysmin_0%"));
-  addSysVar_html(F("%syssec%   // %syssec_0%"));
-  addSysVar_html(F("%syssec_d%"));
-  addSysVar_html(F("%sysweekday%"));
-  addSysVar_html(F("%sysweekday_s%"));
-  addTableSeparator(F("System"), 3, 3);
-  addSysVar_html(F("%uptime%"));
-  addSysVar_html(F("%unixtime%"));
-  addSysVar_html(F("%sunset%"));
-  addSysVar_html(F("%sunset-1h%"));
-  addSysVar_html(F("%sunrise%"));
-  addSysVar_html(F("%sunrise+10m%"));
-
-  addTableSeparator(F("Custom Variables"), 3, 3);
-  for (byte i = 0; i < CUSTOM_VARS_MAX; ++i) {
-    addSysVar_html("%v"+toString(i+1,0)+'%');
-  }
-
-  addTableSeparator(F("Special Characters"), 3, 2);
-  addTableSeparator(F("Degree"), 3, 3);
-  addSysVar_html(F("{D}"));
-  addSysVar_html(F("&deg;"));
-
-  addTableSeparator(F("Angle quotes"), 3, 3);
-  addSysVar_html(F("{<<}"));
-  addSysVar_html(F("&laquo;"));
-  addFormSeparator(3);
-  addSysVar_html(F("{>>}"));
-  addSysVar_html(F("&raquo;"));
-  addTableSeparator(F("Greek letter Mu"), 3, 3);
-  addSysVar_html(F("{u}"));
-  addSysVar_html(F("&micro;"));
-  addTableSeparator(F("Currency"), 3, 3);
-  addSysVar_html(F("{E}"));
-  addSysVar_html(F("&euro;"));
-  addFormSeparator(3);
-  addSysVar_html(F("{Y}"));
-  addSysVar_html(F("&yen;"));
-  addFormSeparator(3);
-  addSysVar_html(F("{P}"));
-  addSysVar_html(F("&pound;"));
-  addFormSeparator(3);
-  addSysVar_html(F("{c}"));
-  addSysVar_html(F("&cent;"));
-
-  addTableSeparator(F("Math symbols"), 3, 3);
-  addSysVar_html(F("{^1}"));
-  addSysVar_html(F("&sup1;"));
-  addFormSeparator(3);
-  addSysVar_html(F("{^2}"));
-  addSysVar_html(F("&sup2;"));
-  addFormSeparator(3);
-  addSysVar_html(F("{^3}"));
-  addSysVar_html(F("&sup3;"));
-  addFormSeparator(3);
-  addSysVar_html(F("{1_4}"));
-  addSysVar_html(F("&frac14;"));
-  addFormSeparator(3);
-  addSysVar_html(F("{1_2}"));
-  addSysVar_html(F("&frac12;"));
-  addFormSeparator(3);
-  addSysVar_html(F("{3_4}"));
-  addSysVar_html(F("&frac34;"));
-  addFormSeparator(3);
-  addSysVar_html(F("{+-}"));
-  addSysVar_html(F("&plusmn;"));
-  addFormSeparator(3);
-  addSysVar_html(F("{x}"));
-  addSysVar_html(F("&times;"));
-  addFormSeparator(3);
-  addSysVar_html(F("{..}"));
-  addSysVar_html(F("&divide;"));
-
-  addTableSeparator(F("Standard Conversions"), 3, 2);
-
-  addSysVar_html(F("Wind Dir.:    %c_w_dir%(123.4)"));
-  addSysVar_html(F("{D}C to {D}F: %c_c2f%(20.4)"));
-  addSysVar_html(F("m/s to Bft:   %c_ms2Bft%(5.1)"));
-  addSysVar_html(F("Dew point(T,H): %c_dew_th%(18.6,67)"));
-  addFormSeparator(3);
-  addSysVar_html(F("cm to imperial: %c_cm2imp%(190)"));
-  addSysVar_html(F("mm to imperial: %c_mm2imp%(1900)"));
-  addFormSeparator(3);
-  addSysVar_html(F("Mins to days: %c_m2day%(1900)"));
-  addSysVar_html(F("Mins to dh:   %c_m2dh%(1900)"));
-  addSysVar_html(F("Mins to dhm:  %c_m2dhm%(1900)"));
-  addSysVar_html(F("Secs to dhms: %c_s2dhms%(100000)"));
-
-  html_end_table();
-  html_end_form();
-  sendHeadandTail_stdtemplate(true);
-  TXBuffer.endStream();
-}
-
-//********************************************************************************
-// URNEncode char string to string object
-//********************************************************************************
-String URLEncode(const char* msg)
+// ********************************************************************************
+// Login state check
+// ********************************************************************************
+boolean isLoggedIn()
 {
-  const char *hex = "0123456789abcdef";
-  String encodedMsg = "";
+  String www_username = F(DEFAULT_ADMIN_USERNAME);
 
-  while (*msg != '\0') {
-    if ( ('a' <= *msg && *msg <= 'z')
-         || ('A' <= *msg && *msg <= 'Z')
-         || ('0' <= *msg && *msg <= '9')
-         || ('-' == *msg) || ('_' == *msg)
-         || ('.' == *msg) || ('~' == *msg) ) {
-      encodedMsg += *msg;
-    } else {
-      encodedMsg += '%';
-      encodedMsg += hex[*msg >> 4];
-      encodedMsg += hex[*msg & 15];
-    }
-    msg++;
+  if (!clientIPallowed()) { return false; }
+
+  if (SecuritySettings.Password[0] == 0) { return true; }
+
+  if (!WebServer.authenticate(www_username.c_str(), SecuritySettings.Password))
+
+  // Basic Auth Method with Custom realm and Failure Response
+  // return server.requestAuthentication(BASIC_AUTH, www_realm, authFailResponse);
+  // Digest Auth Method with realm="Login Required" and empty Failure Response
+  // return server.requestAuthentication(DIGEST_AUTH);
+  // Digest Auth Method with Custom realm and empty Failure Response
+  // return server.requestAuthentication(DIGEST_AUTH, www_realm);
+  // Digest Auth Method with Custom realm and Failure Response
+  {
+#ifdef CORE_PRE_2_5_0
+
+    // See https://github.com/esp8266/Arduino/issues/4717
+    HTTPAuthMethod mode = BASIC_AUTH;
+#else // ifdef CORE_PRE_2_5_0
+    HTTPAuthMethod mode = DIGEST_AUTH;
+#endif // ifdef CORE_PRE_2_5_0
+    String message = F("Login Required (default user: ");
+    message += www_username;
+    message += ')';
+    WebServer.requestAuthentication(mode, message.c_str());
+    return false;
   }
-  return encodedMsg;
+  return true;
 }
-
 
 String getControllerSymbol(byte index)
 {
   String ret = F("<p style='font-size:20px'>&#");
+
   ret += 10102 + index;
   ret += F(";</p>");
   return ret;
 }
 
-String getValueSymbol(byte index)
-{
-  String ret = F("&#");
-  ret += 10112 + index;
-  ret += ';';
-  return ret;
+/*
+   String getValueSymbol(byte index)
+   {
+   String ret = F("&#");
+   ret += 10112 + index;
+   ret += ';';
+   return ret;
+   }
+ */
+
+void addSVG_param(const String& key, float value) {
+  String value_str = String(value, 2);
+  addSVG_param(key, value_str);
 }
 
-
-void handle_favicon() {
-  checkRAM(F("handle_favicon"));
-  WebServer.send_P(200, PSTR("image/x-icon"), favicon_8b_ico, favicon_8b_ico_len);
+void addSVG_param(const String& key, const String& value) {
+  TXBuffer += ' ';
+  TXBuffer += key;
+  TXBuffer += '=';
+  TXBuffer += '\"';
+  TXBuffer += value;
+  TXBuffer += '\"';
 }
 
-void createSvgRectPath(unsigned int color, int xoffset, int yoffset, int size, int height, int range, float SVG_BAR_WIDTH) {
+void createSvgRect_noStroke(unsigned int fillColor, float xoffset, float yoffset, float width, float height, float rx, float ry) {
+  createSvgRect(fillColor, fillColor, xoffset, yoffset, width, height, 0, rx, ry);
+}
+
+void createSvgRect(unsigned int fillColor, unsigned int strokeColor, float xoffset, float yoffset, float width, float height, float strokeWidth, float rx, float ry) {
+  TXBuffer += F("<rect");
+  addSVG_param(F("fill"), formatToHex(fillColor, F("#")));
+  if (strokeWidth != 0) {
+    addSVG_param(F("stroke"), formatToHex(strokeColor, F("#")));
+    addSVG_param(F("stroke-width"), strokeWidth);
+  }
+  addSVG_param("x", xoffset);
+  addSVG_param("y", yoffset);
+  addSVG_param(F("width"), width);
+  addSVG_param(F("height"), height);
+  addSVG_param(F("rx"), rx);
+  addSVG_param(F("ry"), ry);
+  TXBuffer += F("/>");
+}
+
+void createSvgHorRectPath(unsigned int color, int xoffset, int yoffset, int size, int height, int range, float SVG_BAR_WIDTH) {
   float width = SVG_BAR_WIDTH * size / range;
-  if (width < 2) width = 2;
+
+  if (width < 2) { width = 2; }
   TXBuffer += formatToHex(color, F("<path fill=\"#"));
   TXBuffer += F("\" d=\"M");
   TXBuffer += toString(SVG_BAR_WIDTH * xoffset / range, 2);
@@ -6588,25 +5527,50 @@ void write_SVG_image_header(int width, int height, bool useViewbox) {
   TXBuffer += F("\" height=\"");
   TXBuffer += height;
   TXBuffer += F("\" version=\"1.1\"");
+
   if (useViewbox) {
     TXBuffer += F(" viewBox=\"0 0 100 100\"");
   }
   TXBuffer += '>';
 }
 
+/*
 void getESPeasyLogo(int width_pixels) {
   write_SVG_image_header(width_pixels, width_pixels, true);
   TXBuffer += F("<g transform=\"translate(-33.686 -7.8142)\">");
-  TXBuffer += F("<rect x=\"49\" y=\"23.1\" width=\"69.3\" height=\"69.3\" fill=\"#2c72da\" stroke=\"#2c72da\" stroke-linecap=\"round\" stroke-linejoin=\"round\" stroke-width=\"30.7\"/>");
+  TXBuffer += F("<rect x=\"49\" y=\"23.1\" width=\"69.3\" height=\"69.3\" fill=\"#2c72da\" stroke=\"#2c72da\" stroke-linecap=\"round\"stroke-linejoin=\"round\" stroke-width=\"30.7\"/>");
   TXBuffer += F("<g transform=\"matrix(3.3092 0 0 3.3092 -77.788 -248.96)\">");
-  TXBuffer += F("<path d=\"m37.4 89 7.5-7.5M37.4 96.5l15-15M37.4 96.5l15-15M37.4 104l22.5-22.5M44.9 104l15-15\" fill=\"none\" stroke=\"#fff\" stroke-linecap=\"round\" stroke-width=\"2.6\"/>");
+  TXBuffer += F("<path d=\"m37.4 89 7.5-7.5M37.4 96.5l15-15M37.4 96.5l15-15M37.4 104l22.5-22.5M44.9 104l15-15\" fill=\"none\"stroke=\"#fff\" stroke-linecap=\"round\" stroke-width=\"2.6\"/>");
   TXBuffer += F("<circle cx=\"58\" cy=\"102.1\" r=\"3\" fill=\"#fff\"/>");
   TXBuffer += F("</g></g></svg>");
 }
+*/
 
+void getWiFi_RSSI_icon(int rssi, int width_pixels)
+{
+  const int nbars_filled = (rssi + 100) / 8;
+  int nbars = 5;
+  int white_between_bar = (static_cast<float>(width_pixels) / nbars) * 0.2;
+  if (white_between_bar < 1) { white_between_bar = 1; }
+  const int barWidth = (width_pixels - (nbars - 1) * white_between_bar) / nbars;
+  int svg_width_pixels = nbars * barWidth + (nbars - 1) * white_between_bar;
+  write_SVG_image_header(svg_width_pixels, svg_width_pixels, true);
+  float scale = 100 / svg_width_pixels;
+  const int bar_height_step = 100 / nbars;
+  for (int i = 0; i < nbars; ++i) {
+    unsigned int color = i < nbars_filled ? 0x0 : 0xa1a1a1;  // Black/Grey
+    int barHeight = (i + 1) * bar_height_step;
+    createSvgRect_noStroke(color, i * (barWidth + white_between_bar) * scale, 100 - barHeight, barWidth, barHeight, 0, 0);
+  }
+  TXBuffer += F("</svg>\n");
+}
+
+
+#ifndef BUILD_MINIMAL_OTA
 void getConfig_dat_file_layout() {
-  const int shiftY = 2;
-  float yOffset = shiftY;
+  const int shiftY  = 2;
+  float     yOffset = shiftY;
+
   write_SVG_image_header(SVG_BAR_WIDTH + 250, SVG_BAR_HEIGHT + shiftY);
 
   int max_index, offset, max_size;
@@ -6614,20 +5578,24 @@ void getConfig_dat_file_layout() {
 
   // background
   const uint32_t realSize = getFileSize(TaskSettings_Type);
-  createSvgRectPath(0xcdcdcd, 0, yOffset, realSize, SVG_BAR_HEIGHT - 2, realSize, SVG_BAR_WIDTH);
+  createSvgHorRectPath(0xcdcdcd, 0, yOffset, realSize, SVG_BAR_HEIGHT - 2, realSize, SVG_BAR_WIDTH);
 
   for (int st = 0; st < SettingsType_MAX; ++st) {
     SettingsType settingsType = static_cast<SettingsType>(st);
+
     if (settingsType != NotificationSettings_Type) {
       unsigned int color = getSettingsTypeColor(settingsType);
       getSettingsParameters(settingsType, 0, max_index, offset, max_size, struct_size);
+
       for (int i = 0; i < max_index; ++i) {
         getSettingsParameters(settingsType, i, offset, max_size);
+
         // Struct position
-        createSvgRectPath(color, offset, yOffset, max_size, SVG_BAR_HEIGHT - 2, realSize, SVG_BAR_WIDTH);
+        createSvgHorRectPath(color, offset, yOffset, max_size, SVG_BAR_HEIGHT - 2, realSize, SVG_BAR_WIDTH);
       }
     }
   }
+
   // Text labels
   float textXoffset = SVG_BAR_WIDTH + 2;
   float textYoffset = yOffset + 0.9 * SVG_BAR_HEIGHT;
@@ -6636,42 +5604,53 @@ void getConfig_dat_file_layout() {
 }
 
 void getStorageTableSVG(SettingsType settingsType) {
-  uint32_t realSize = getFileSize(settingsType);
-  unsigned int color = getSettingsTypeColor(settingsType);
-  const int shiftY = 2;
+  uint32_t realSize   = getFileSize(settingsType);
+  unsigned int color  = getSettingsTypeColor(settingsType);
+  const int    shiftY = 2;
 
   int max_index, offset, max_size;
   int struct_size = 0;
+
   getSettingsParameters(settingsType, 0, max_index, offset, max_size, struct_size);
-  if (max_index == 0) return;
+
+  if (max_index == 0) { return; }
+
   // One more to add bar indicating struct size vs. reserved space.
   write_SVG_image_header(SVG_BAR_WIDTH + 250, (max_index + 1) * SVG_BAR_HEIGHT + shiftY);
   float yOffset = shiftY;
+
   for (int i = 0; i < max_index; ++i) {
     getSettingsParameters(settingsType, i, offset, max_size);
+
     // background
-    createSvgRectPath(0xcdcdcd, 0, yOffset, realSize, SVG_BAR_HEIGHT - 2, realSize, SVG_BAR_WIDTH);
+    createSvgHorRectPath(0xcdcdcd, 0,      yOffset, realSize, SVG_BAR_HEIGHT - 2, realSize, SVG_BAR_WIDTH);
+
     // Struct position
-    createSvgRectPath(color, offset, yOffset, max_size, SVG_BAR_HEIGHT - 2, realSize, SVG_BAR_WIDTH);
+    createSvgHorRectPath(color,    offset, yOffset, max_size, SVG_BAR_HEIGHT - 2, realSize, SVG_BAR_WIDTH);
+
     // Text labels
     float textXoffset = SVG_BAR_WIDTH + 2;
     float textYoffset = yOffset + 0.9 * SVG_BAR_HEIGHT;
-    createSvgTextElement(formatHumanReadable(offset, 1024), textXoffset, textYoffset);
+    createSvgTextElement(formatHumanReadable(offset, 1024),   textXoffset, textYoffset);
     textXoffset = SVG_BAR_WIDTH + 60;
     createSvgTextElement(formatHumanReadable(max_size, 1024), textXoffset, textYoffset);
     textXoffset = SVG_BAR_WIDTH + 130;
-    createSvgTextElement(String(i), textXoffset, textYoffset);
+    createSvgTextElement(String(i),                           textXoffset, textYoffset);
     yOffset += SVG_BAR_HEIGHT;
   }
+
   // usage
-  createSvgRectPath(0xcdcdcd, 0, yOffset, max_size, SVG_BAR_HEIGHT - 2, max_size, SVG_BAR_WIDTH);
+  createSvgHorRectPath(0xcdcdcd, 0, yOffset, max_size, SVG_BAR_HEIGHT - 2, max_size, SVG_BAR_WIDTH);
+
   // Struct size (used part of the reserved space)
   if (struct_size != 0) {
-    createSvgRectPath(color, 0, yOffset, struct_size, SVG_BAR_HEIGHT - 2, max_size, SVG_BAR_WIDTH);
+    createSvgHorRectPath(color, 0, yOffset, struct_size, SVG_BAR_HEIGHT - 2, max_size, SVG_BAR_WIDTH);
   }
+
   // Text labels
   float textXoffset = SVG_BAR_WIDTH + 2;
   float textYoffset = yOffset + 0.9 * SVG_BAR_HEIGHT;
+
   if (struct_size != 0) {
     String text = formatHumanReadable(struct_size, 1024);
     text += '/';
@@ -6684,13 +5663,16 @@ void getStorageTableSVG(SettingsType settingsType) {
   TXBuffer += F("</svg>\n");
 }
 
+#endif // ifndef BUILD_MINIMAL_OTA
+
 #ifdef ESP32
 
 
 int getPartionCount(byte pType) {
-  esp_partition_type_t partitionType = static_cast<esp_partition_type_t>(pType);
+  esp_partition_type_t partitionType       = static_cast<esp_partition_type_t>(pType);
   esp_partition_iterator_t _mypartiterator = esp_partition_find(partitionType, ESP_PARTITION_SUBTYPE_ANY, NULL);
-  int nrPartitions = 0;
+  int nrPartitions                         = 0;
+
   if (_mypartiterator) {
     do {
       ++nrPartitions;
@@ -6702,25 +5684,27 @@ int getPartionCount(byte pType) {
 
 void getPartitionTableSVG(byte pType, unsigned int partitionColor) {
   int nrPartitions = getPartionCount(pType);
-  if (nrPartitions == 0) return;
+
+  if (nrPartitions == 0) { return; }
   const int shiftY = 2;
 
-  uint32_t realSize = getFlashRealSizeInBytes();
-  esp_partition_type_t partitionType = static_cast<esp_partition_type_t>(pType);
-  const esp_partition_t * _mypart;
+  uint32_t realSize                      = getFlashRealSizeInBytes();
+  esp_partition_type_t     partitionType = static_cast<esp_partition_type_t>(pType);
+  const esp_partition_t   *_mypart;
   esp_partition_iterator_t _mypartiterator = esp_partition_find(partitionType, ESP_PARTITION_SUBTYPE_ANY, NULL);
   write_SVG_image_header(SVG_BAR_WIDTH + 250, nrPartitions * SVG_BAR_HEIGHT + shiftY);
   float yOffset = shiftY;
+
   if (_mypartiterator) {
     do {
       _mypart = esp_partition_get(_mypartiterator);
-      createSvgRectPath(0xcdcdcd, 0, yOffset, realSize, SVG_BAR_HEIGHT - 2, realSize, SVG_BAR_WIDTH);
-      createSvgRectPath(partitionColor, _mypart->address, yOffset, _mypart->size, SVG_BAR_HEIGHT - 2, realSize, SVG_BAR_WIDTH);
+      createSvgHorRectPath(0xcdcdcd,       0,                yOffset, realSize,      SVG_BAR_HEIGHT - 2, realSize, SVG_BAR_WIDTH);
+      createSvgHorRectPath(partitionColor, _mypart->address, yOffset, _mypart->size, SVG_BAR_HEIGHT - 2, realSize, SVG_BAR_WIDTH);
       float textXoffset = SVG_BAR_WIDTH + 2;
       float textYoffset = yOffset + 0.9 * SVG_BAR_HEIGHT;
-      createSvgTextElement(formatHumanReadable(_mypart->size, 1024), textXoffset, textYoffset);
+      createSvgTextElement(formatHumanReadable(_mypart->size, 1024),          textXoffset, textYoffset);
       textXoffset = SVG_BAR_WIDTH + 60;
-      createSvgTextElement(_mypart->label, textXoffset, textYoffset);
+      createSvgTextElement(_mypart->label,                                    textXoffset, textYoffset);
       textXoffset = SVG_BAR_WIDTH + 130;
       createSvgTextElement(getPartitionType(_mypart->type, _mypart->subtype), textXoffset, textYoffset);
       yOffset += SVG_BAR_HEIGHT;
@@ -6730,4 +5714,4 @@ void getPartitionTableSVG(byte pType, unsigned int partitionColor) {
   esp_partition_iterator_release(_mypartiterator);
 }
 
-#endif
+#endif // ifdef ESP32

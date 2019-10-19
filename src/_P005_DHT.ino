@@ -70,7 +70,7 @@ boolean Plugin_005(byte function, struct EventStruct *event, String& string)
         const String options[] = { F("DHT 11"), F("DHT 22"), F("DHT 12"), F("Sonoff am2301"), F("Sonoff si7021") };
         int indices[] = { P005_DHT11, P005_DHT22, P005_DHT12, P005_AM2301, P005_SI7021 };
 
-        addFormSelector(F("DHT Type"), F("p005_dhttype"), 5, options, indices, Settings.TaskDevicePluginConfig[event->TaskIndex][0] );
+        addFormSelector(F("Sensor model"), F("p005_dhttype"), 5, options, indices, PCONFIG(0) );
 
         success = true;
         break;
@@ -78,7 +78,7 @@ boolean Plugin_005(byte function, struct EventStruct *event, String& string)
 
     case PLUGIN_WEBFORM_SAVE:
       {
-        Settings.TaskDevicePluginConfig[event->TaskIndex][0] = getFormItemInt(F("p005_dhttype"));
+        PCONFIG(0) = getFormItemInt(F("p005_dhttype"));
 
         success = true;
         break;
@@ -144,42 +144,48 @@ boolean P005_waitState(int state)
 bool P005_do_plugin_read(struct EventStruct *event) {
   byte i;
 
-  byte Par3 = Settings.TaskDevicePluginConfig[event->TaskIndex][0];
-  Plugin_005_DHT_Pin = Settings.TaskDevicePin1[event->TaskIndex];
+  byte Par3 = PCONFIG(0);
+  Plugin_005_DHT_Pin = CONFIG_PIN1;
 
   pinMode(Plugin_005_DHT_Pin, OUTPUT);
   digitalWrite(Plugin_005_DHT_Pin, LOW);              // Pull low
+  
   switch (Par3) {
-    case P005_DHT11:
-    case P005_DHT22:
-    case P005_DHT12:  delay(18); break;  // FIXME TD-er: Must this be so long?
+    case P005_DHT11:  delay(18); break;  // minimum 18ms
+    case P005_DHT22:  delay(2);  break;  // minimum 1ms
+    case P005_DHT12:  delay(200); break; // minimum 200ms
     case P005_AM2301: delayMicroseconds(900); break;
     case P005_SI7021: delayMicroseconds(500); break;
   }
+  
+  pinMode(Plugin_005_DHT_Pin, INPUT_PULLUP);
+  
   switch (Par3) {
     case P005_DHT11:
     case P005_DHT22:
     case P005_DHT12:
     case P005_AM2301:
-      pinMode(Plugin_005_DHT_Pin, INPUT);
       delayMicroseconds(50);
       break;
     case P005_SI7021:
       // See: https://github.com/letscontrolit/ESPEasy/issues/1798
-      digitalWrite(Plugin_005_DHT_Pin, HIGH);
       delayMicroseconds(20);
-      pinMode(Plugin_005_DHT_Pin, INPUT);
       break;
   }
+  
   if(!P005_waitState(0)) {P005_log(event, P005_error_no_reading); return false; }
   if(!P005_waitState(1)) {P005_log(event, P005_error_no_reading); return false; }
   noInterrupts();
-  if(!P005_waitState(0)) {P005_log(event, P005_error_no_reading); return false; }
+  if(!P005_waitState(0)) {
+    interrupts();
+    P005_log(event, P005_error_no_reading);
+    return false;
+  }
   bool readingAborted = false;
   byte dht_dat[5];
   for (i = 0; i < 5 && !readingAborted; i++)
   {
-      byte data = Plugin_005_read_dht_dat();
+      int data = Plugin_005_read_dht_dat();
       if(data == -1)
       {   P005_log(event, P005_error_protocol_timeout);
           readingAborted = true;

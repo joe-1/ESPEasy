@@ -7,6 +7,8 @@
 
 // This task reads data from the MQTT Import input stream and saves the value
 
+#include "src/Globals/MQTT.h"
+
 #define PLUGIN_037
 #define PLUGIN_ID_037         37
 #define PLUGIN_NAME_037       "Generic - MQTT Import"
@@ -21,9 +23,11 @@
 // Declare a Wifi client for this plugin only
 
 // TODO TD-er: These must be kept in some vector to allow multiple instances of MQTT import.
+#ifdef USES_MQTT
 WiFiClient espclient_037;
 PubSubClient *MQTTclient_037 = NULL;
 bool MQTTclient_037_connected = false;
+#endif //USES_MQTT
 int reconnectCount = 0;
 
 String getClientName() {
@@ -32,6 +36,8 @@ String getClientName() {
   //
   String tmpClientName = F("%sysname%-Import");
   String ClientName = parseTemplate(tmpClientName, 20);
+  ClientName.trim(); // Avoid spaced in the name.
+  ClientName.replace(' ', '_');
   if (reconnectCount != 0) ClientName += reconnectCount;
   return ClientName;
 }
@@ -71,8 +77,11 @@ void Plugin_037_update_connect_status() {
     }
     if (!connected) {
       // workaround see: https://github.com/esp8266/Arduino/issues/4497#issuecomment-373023864
-      espclient_037 = WiFiClient();
-      espclient_037.setTimeout(CONTROLLER_CLIENTTIMEOUT_DFLT);
+      if (MQTTclient_037 != NULL) {
+        espclient_037 = WiFiClient();
+        espclient_037.setTimeout(CONTROLLER_CLIENTTIMEOUT_DFLT);
+        MQTTclient_037->setClient(espclient_037);
+      }
       ++reconnectCount;
       addLog(LOG_LEVEL_ERROR, F("IMPT : MQTT 037 Connection lost"));
     }
@@ -167,6 +176,7 @@ boolean Plugin_037(byte function, struct EventStruct *event, String& string)
             success = true;
           }
         }
+		break;
       }
 
     case PLUGIN_TEN_PER_SECOND:

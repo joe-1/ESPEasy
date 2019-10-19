@@ -19,11 +19,22 @@ GitHub: |P062_github|_
 
 Maintainer: |P062_maintainer|
 
+Used libraries: |P062_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P062_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P062_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P062_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

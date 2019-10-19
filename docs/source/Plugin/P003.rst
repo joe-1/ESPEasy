@@ -19,11 +19,22 @@ GitHub: |P003_github|_
 
 Maintainer: |P003_maintainer|
 
+Used libraries: |P003_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P003_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P003_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P003_events.repl
 
 Change log
 ----------
@@ -39,3 +50,5 @@ Change log
 
   |added|
   Initial release version.
+
+

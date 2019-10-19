@@ -19,11 +19,22 @@ GitHub: |P046_github|_
 
 Maintainer: |P046_maintainer|
 
+Used libraries: |P046_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P046_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P046_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P046_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

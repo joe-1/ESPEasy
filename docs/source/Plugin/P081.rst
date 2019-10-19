@@ -19,11 +19,22 @@ GitHub: |P081_github|_
 
 Maintainer: |P081_maintainer|
 
+Used libraries: |P081_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P081_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P081_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P081_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

@@ -19,11 +19,22 @@ GitHub: |P044_github|_
 
 Maintainer: |P044_maintainer|
 
+Used libraries: |P044_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P044_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P044_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P044_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

@@ -8,9 +8,9 @@
 #define CPLUGIN_NAME_008       "Generic HTTP"
 #include <ArduinoJson.h>
 
-boolean CPlugin_008(byte function, struct EventStruct *event, String& string)
+bool CPlugin_008(byte function, struct EventStruct *event, String& string)
 {
-  boolean success = false;
+  bool success = false;
 
   switch (function)
   {
@@ -52,8 +52,10 @@ boolean CPlugin_008(byte function, struct EventStruct *event, String& string)
         // Collect the values at the same run, to make sure all are from the same sample
         byte valueCount = getValueCountFromSensorType(event->sensorType);
         C008_queue_element element(event, valueCount);
-        if (ExtraTaskSettings.TaskIndex != event->TaskIndex)
-          PluginCall(PLUGIN_GET_DEVICEVALUENAMES, event, dummyString);
+        if (ExtraTaskSettings.TaskIndex != event->TaskIndex) {
+          String dummy;
+          PluginCall(PLUGIN_GET_DEVICEVALUENAMES, event, dummy);
+        }
 
         MakeControllerSettings(ControllerSettings);
         LoadControllerSettings(event->ControllerIndex, ControllerSettings);
@@ -69,11 +71,20 @@ boolean CPlugin_008(byte function, struct EventStruct *event, String& string)
 
             element.txt[x].replace(F("%valname%"), URLEncode(ExtraTaskSettings.TaskDeviceValueNames[x]));
             element.txt[x].replace(F("%value%"), formattedValue);
+#ifndef BUILD_NO_DEBUG
             addLog(LOG_LEVEL_DEBUG_MORE, element.txt[x]);
+#endif
           }
         }
         success = C008_DelayHandler.addToQueue(element);
         scheduleNextDelayQueue(TIMER_C008_DELAY_QUEUE, C008_DelayHandler.getNextScheduleTime());
+        break;
+      }
+
+    case CPLUGIN_FLUSH:
+      {
+        process_c008_delay_queue();
+        delay(0);
         break;
       }
 
@@ -84,6 +95,8 @@ boolean CPlugin_008(byte function, struct EventStruct *event, String& string)
 //********************************************************************************
 // Generic HTTP get request
 //********************************************************************************
+bool do_process_c008_delay_queue(int controller_number, const C008_queue_element& element, ControllerSettingsStruct& ControllerSettings);
+
 bool do_process_c008_delay_queue(int controller_number, const C008_queue_element& element, ControllerSettingsStruct& ControllerSettings) {
   while (element.txt[element.valuesSent] == "") {
     // A non valid value, which we are not going to send.

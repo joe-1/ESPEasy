@@ -1,7 +1,8 @@
-// Copyright 2017 David Conran
+// Copyright 2017-2019 David Conran
 // Copyright 2018 denxhun
 
 #include "ir_Mitsubishi.h"
+#include "IRac.h"
 #include "IRrecv_test.h"
 #include "IRsend.h"
 #include "IRsend_test.h"
@@ -17,6 +18,7 @@ TEST(TestSendMitsubishi, SendDataOnly) {
   irsend.reset();
   irsend.sendMitsubishi(0xE242);
   EXPECT_EQ(
+      "f33000d50"
       "m300s2100m300s2100m300s2100m300s900m300s900m300s900m300s2100m300s900"
       "m300s900m300s2100m300s900m300s900m300s900m300s900m300s2100m300s900"
       "m300s28080"
@@ -28,6 +30,7 @@ TEST(TestSendMitsubishi, SendDataOnly) {
   irsend.reset();
   irsend.sendMitsubishi(0x0);
   EXPECT_EQ(
+      "f33000d50"
       "m300s900m300s900m300s900m300s900m300s900m300s900m300s900m300s900"
       "m300s900m300s900m300s900m300s900m300s900m300s900m300s900m300s900"
       "m300s34080"
@@ -39,6 +42,7 @@ TEST(TestSendMitsubishi, SendDataOnly) {
   irsend.reset();
   irsend.sendMitsubishi(0x4321);
   EXPECT_EQ(
+      "f33000d50"
       "m300s900m300s2100m300s900m300s900m300s900m300s900m300s2100m300s2100"
       "m300s900m300s900m300s2100m300s900m300s900m300s900m300s900m300s2100"
       "m300s28080"
@@ -56,6 +60,7 @@ TEST(TestSendMitsubishi, SendWithRepeats) {
   irsend.reset();
   irsend.sendMitsubishi(0xE242, kMitsubishiBits, 0);  // 0 repeat.
   EXPECT_EQ(
+      "f33000d50"
       "m300s2100m300s2100m300s2100m300s900m300s900m300s900m300s2100m300s900"
       "m300s900m300s2100m300s900m300s900m300s900m300s900m300s2100m300s900"
       "m300s28080",
@@ -64,6 +69,7 @@ TEST(TestSendMitsubishi, SendWithRepeats) {
   irsend.reset();
   irsend.sendMitsubishi(0xE242, kMitsubishiBits, 1);  // 1 repeat.
   EXPECT_EQ(
+      "f33000d50"
       "m300s2100m300s2100m300s2100m300s900m300s900m300s900m300s2100m300s900"
       "m300s900m300s2100m300s900m300s900m300s900m300s900m300s2100m300s900"
       "m300s28080"
@@ -73,6 +79,7 @@ TEST(TestSendMitsubishi, SendWithRepeats) {
       irsend.outputStr());
   irsend.sendMitsubishi(0xE242, kMitsubishiBits, 2);  // 2 repeats.
   EXPECT_EQ(
+      "f33000d50"
       "m300s2100m300s2100m300s2100m300s900m300s900m300s900m300s2100m300s900"
       "m300s900m300s2100m300s900m300s900m300s900m300s900m300s2100m300s900"
       "m300s28080"
@@ -93,6 +100,7 @@ TEST(TestSendMitsubishi, SendUnusualSize) {
   irsend.reset();
   irsend.sendMitsubishi(0x0, 8);
   EXPECT_EQ(
+      "f33000d50"
       "m300s900m300s900m300s900m300s900m300s900m300s900m300s900m300s900"
       "m300s43680"
       "m300s900m300s900m300s900m300s900m300s900m300s900m300s900m300s900"
@@ -102,6 +110,7 @@ TEST(TestSendMitsubishi, SendUnusualSize) {
   irsend.reset();
   irsend.sendMitsubishi(0x1234567890ABCDEF, 64);
   EXPECT_EQ(
+      "f33000d50"
       "m300s900m300s900m300s900m300s2100m300s900m300s900m300s2100m300s900"
       "m300s900m300s900m300s2100m300s2100m300s900m300s2100m300s900m300s900"
       "m300s900m300s2100m300s900m300s2100m300s900m300s2100m300s2100m300s900"
@@ -305,6 +314,7 @@ TEST(TestSendMitsubishiAC, SendDataOnly) {
   irsend.reset();
   irsend.sendMitsubishiAC(mitsub_code);
   EXPECT_EQ(
+      "f38000d50"
       "m3400s1750"
       "m450s1300m450s1300m450s420m450s420m450s420m450s1300m450s420m450s420"
       "m450s1300m450s1300m450s420m450s1300m450s420m450s420m450s1300m450s1300"
@@ -360,6 +370,7 @@ TEST(TestSendMitsubishiAC, SendWithRepeats) {
 
   irsend.sendMitsubishiAC(mitsub_code, kMitsubishiACStateLength, 0);
   EXPECT_EQ(
+      "f38000d50"
       "m3400s1750"
       "m450s1300m450s1300m450s420m450s420m450s420m450s1300m450s420m450s420"
       "m450s1300m450s1300m450s420m450s1300m450s420m450s420m450s1300m450s1300"
@@ -385,6 +396,7 @@ TEST(TestSendMitsubishiAC, SendWithRepeats) {
   irsend.reset();
   irsend.sendMitsubishiAC(mitsub_code, kMitsubishiACStateLength, 2);
   EXPECT_EQ(
+      "f38000d50"
       "m3400s1750"
       "m450s1300m450s1300m450s420m450s420m450s420m450s1300m450s420m450s420"
       "m450s1300m450s1300m450s420m450s1300m450s420m450s420m450s1300m450s1300"
@@ -466,6 +478,7 @@ TEST(TestSendMitsubishiAC, SendUnexpectedSizes) {
   irsend.reset();
   irsend.sendMitsubishiAC(mitsub_long_code, 19);
   ASSERT_EQ(
+      "f38000d50"
       "m3400s1750"
       "m450s1300m450s1300m450s420m450s420m450s420m450s1300m450s420m450s420"
       "m450s1300m450s1300m450s420m450s1300m450s420m450s420m450s1300m450s1300"
@@ -665,6 +678,7 @@ TEST(TestMitsubishiACClass, MessageConstuction) {
   irsend.reset();
   irsend.sendMitsubishiAC(mitsub.getRaw());
   EXPECT_EQ(
+      "f38000d50"
       "m3400s1750"
       "m450s1300m450s1300m450s420m450s420m450s420m450s1300m450s420m450s420"
       "m450s1300m450s1300m450s420m450s1300m450s420m450s420m450s1300m450s1300"
@@ -971,8 +985,8 @@ TEST(TestDecodeMitsubishiAC, DecodeRealExampleRepeatNeededButError) {
 TEST(TestMitsubishiACClass, HumanReadable) {
   IRMitsubishiAC irMitsu(0);
   EXPECT_EQ(
-      "Power: On (HEAT), Temp: 22C, FAN: SILENT, VANE: AUTO, "
-      "Time: 17:10, On timer: 00:00, Off timer: 00:00, Timer: -",
+      "Power: On, Mode: 8 (HEAT), Temp: 22C, Fan: 6 (Quiet), Vane: AUTO, "
+      "Wide Vane: 3, Time: 17:10, On timer: 00:00, Off timer: 00:00, Timer: -",
       irMitsu.toString());
 }
 
@@ -984,6 +998,7 @@ TEST(TestSendMitsubishi2, SendDataOnly) {
   irsend.reset();
   irsend.sendMitsubishi2(0xF82);
   EXPECT_EQ(
+      "f33000d50"
       "m8400s4200"
       "m560s520m560s520m560s520m560s520m560s1560m560s1560m560s1560m560s1560"
       "m560s4200"
@@ -999,6 +1014,7 @@ TEST(TestSendMitsubishi2, SendDataOnly) {
   irsend.reset();
   irsend.sendMitsubishi2(0x0);
   EXPECT_EQ(
+      "f33000d50"
       "m8400s4200"
       "m560s520m560s520m560s520m560s520m560s520m560s520m560s520m560s520"
       "m560s4200"
@@ -1020,6 +1036,7 @@ TEST(TestSendMitsubishi2, Repeats) {
   irsend.reset();
   irsend.sendMitsubishi2(0xF82, kMitsubishiBits, 0);
   EXPECT_EQ(
+      "f33000d50"
       "m8400s4200"
       "m560s520m560s520m560s520m560s520m560s1560m560s1560m560s1560m560s1560"
       "m560s4200"
@@ -1030,6 +1047,7 @@ TEST(TestSendMitsubishi2, Repeats) {
   irsend.reset();
   irsend.sendMitsubishi2(0xF82, kMitsubishiBits, 2);
   EXPECT_EQ(
+      "f33000d50"
       "m8400s4200"
       "m560s520m560s520m560s520m560s520m560s1560m560s1560m560s1560m560s1560"
       "m560s4200"
@@ -1115,4 +1133,118 @@ TEST(TestDecodeMitsubishi2, DecodeRealExample) {
   EXPECT_EQ(0xF82, irsend.capture.value);
   EXPECT_EQ(0xF, irsend.capture.address);
   EXPECT_EQ(0x82, irsend.capture.command);
+}
+
+TEST(TestMitsubishiACClass, toCommon) {
+  IRMitsubishiAC ac(0);
+  ac.setPower(true);
+  ac.setMode(kMitsubishiAcCool);
+  ac.setTemp(20);
+  ac.setFan(kMitsubishiAcFanSilent);
+  ac.setVane(kMitsubishiAcVaneAuto);
+  ac.setWideVane(kMitsubishiAcWideVaneAuto);
+  // Now test it.
+  ASSERT_EQ(decode_type_t::MITSUBISHI_AC, ac.toCommon().protocol);
+  ASSERT_EQ(-1, ac.toCommon().model);
+  ASSERT_TRUE(ac.toCommon().power);
+  ASSERT_TRUE(ac.toCommon().celsius);
+  ASSERT_EQ(20, ac.toCommon().degrees);
+  ASSERT_EQ(stdAc::opmode_t::kCool, ac.toCommon().mode);
+  ASSERT_EQ(stdAc::fanspeed_t::kMin, ac.toCommon().fanspeed);
+  ASSERT_EQ(stdAc::swingv_t::kAuto, ac.toCommon().swingv);
+  ASSERT_EQ(stdAc::swingh_t::kAuto, ac.toCommon().swingh);
+  ASSERT_TRUE(ac.toCommon().quiet);
+  // Unsupported.
+  ASSERT_FALSE(ac.toCommon().turbo);
+  ASSERT_FALSE(ac.toCommon().clean);
+  ASSERT_FALSE(ac.toCommon().light);
+  ASSERT_FALSE(ac.toCommon().econo);
+  ASSERT_FALSE(ac.toCommon().filter);
+  ASSERT_FALSE(ac.toCommon().beep);
+  ASSERT_EQ(-1, ac.toCommon().sleep);
+  ASSERT_EQ(-1, ac.toCommon().clock);
+}
+
+// Decode a 'real' example.
+// Ref: https://github.com/crankyoldgit/IRremoteESP8266/issues/888
+TEST(TestDecodeMitsubishi136, DecodeRealExample) {
+  IRsendTest irsend(0);
+  IRrecv irrecv(0);
+  irsend.begin();
+
+  irsend.reset();
+  // Mitsubishi Electric Ducted A/C - ON, 20C, Cooling, MaxFan.
+  uint16_t rawData[275] = {
+      3324, 1474, 520, 1110, 492, 1110, 524, 314, 498, 318, 466, 336, 474, 1124,
+      514, 322, 464, 338, 472, 1124, 516, 1112, 482, 342, 480, 1118, 488, 338,
+      466, 344, 480, 1124, 480, 1124, 510, 328, 484, 1114, 480, 1132, 510, 330,
+      456, 344, 464, 1134, 506, 334, 452, 346, 462, 1136, 504, 336, 450, 348,
+      460, 350, 472, 338, 474, 1124, 472, 352, 472, 340, 474, 342, 446, 354,
+      454, 354, 468, 344, 470, 344, 442, 356, 450, 358, 466, 346, 466, 348, 440,
+      360, 448, 360, 462, 350, 464, 352, 438, 360, 434, 1162, 490, 350, 438,
+      1148, 486, 350, 464, 352, 436, 362, 432, 376, 462, 352, 462, 1138, 448,
+      376, 460, 1142, 462, 1150, 484, 1140, 462, 360, 446, 1152, 492, 1132, 460,
+      362, 466, 348, 466, 348, 438, 360, 446, 1152, 492, 348, 436, 360, 434,
+      374, 462, 350, 464, 350, 436, 362, 434, 376, 460, 352, 462, 352, 434, 364,
+      432, 378, 458, 354, 460, 356, 434, 364, 430, 380, 456, 356, 458, 356, 432,
+      366, 428, 382, 454, 358, 456, 358, 430, 1158, 476, 1146, 458, 1156, 478,
+      1150, 454, 1154, 480, 1142, 460, 362, 434, 1164, 488, 352, 436, 1148, 488,
+      1140, 462, 1144, 490, 1136, 466, 1142, 492, 346, 466, 1132, 462, 360, 466,
+      348, 466, 350, 438, 1152, 482, 348, 464, 350, 438, 1144, 490, 1142, 462,
+      1148, 486, 1138, 466, 354, 450, 1146, 496, 1132, 460, 1150, 494, 1130,
+      464, 1146, 498, 1130, 464, 1144, 498, 1130, 462, 1144, 500, 1126, 468,
+      1142, 502, 1122, 470, 1142, 502, 1130, 464, 1140, 504, 1124, 468, 1140,
+      504, 1122, 472, 1142, 502, 1122, 472, 1138, 506};  // UNKNOWN 66B4490E
+
+  irsend.sendRaw(rawData, 275, 38);
+  irsend.makeDecodeResult();
+
+  ASSERT_TRUE(irrecv.decode(&irsend.capture));
+  ASSERT_EQ(MITSUBISHI136, irsend.capture.decode_type);
+  EXPECT_EQ(kMitsubishi136Bits, irsend.capture.bits);
+  uint8_t expected[kMitsubishi136StateLength] = {
+      0x23, 0xCB, 0x26, 0x21, 0x00, 0x40, 0x41, 0x37, 0x04,
+      0x00, 0x00, 0xBF, 0xBE, 0xC8, 0xFB, 0xFF, 0xFF};
+  EXPECT_STATE_EQ(expected, irsend.capture.state, kMitsubishi136Bits);
+}
+
+// Self decode a synthetic example.
+// Ref: https://github.com/crankyoldgit/IRremoteESP8266/issues/888
+TEST(TestDecodeMitsubishi136, SyntheticExample) {
+  IRsendTest irsend(0);
+  IRrecv irrecv(0);
+  irsend.begin();
+
+  irsend.reset();
+  // Mitsubishi Electric Ducted A/C - ON, 20C, Cooling, MaxFan.
+  uint8_t expected[kMitsubishi136StateLength] = {
+      0x23, 0xCB, 0x26, 0x21, 0x00, 0x40, 0x41, 0x37, 0x04,
+      0x00, 0x00, 0xBF, 0xBE, 0xC8, 0xFB, 0xFF, 0xFF};
+
+  irsend.sendMitsubishi136(expected);
+  irsend.makeDecodeResult();
+
+  ASSERT_TRUE(irrecv.decode(&irsend.capture));
+  ASSERT_EQ(MITSUBISHI136, irsend.capture.decode_type);
+  EXPECT_EQ(kMitsubishi136Bits, irsend.capture.bits);
+  EXPECT_STATE_EQ(expected, irsend.capture.state, kMitsubishi136Bits);
+}
+
+// General housekeeping
+TEST(TestMitsubishi, Housekeeping) {
+  ASSERT_EQ("MITSUBISHI", typeToString(decode_type_t::MITSUBISHI));
+  ASSERT_FALSE(hasACState(decode_type_t::MITSUBISHI));
+  ASSERT_FALSE(IRac::isProtocolSupported(decode_type_t::MITSUBISHI));
+
+  ASSERT_EQ("MITSUBISHI2", typeToString(decode_type_t::MITSUBISHI2));
+  ASSERT_FALSE(hasACState(decode_type_t::MITSUBISHI2));
+  ASSERT_FALSE(IRac::isProtocolSupported(decode_type_t::MITSUBISHI2));
+
+  ASSERT_EQ("MITSUBISHI_AC", typeToString(decode_type_t::MITSUBISHI_AC));
+  ASSERT_TRUE(hasACState(decode_type_t::MITSUBISHI_AC));
+  ASSERT_TRUE(IRac::isProtocolSupported(decode_type_t::MITSUBISHI_AC));
+
+  ASSERT_EQ("MITSUBISHI136", typeToString(decode_type_t::MITSUBISHI136));
+  ASSERT_TRUE(hasACState(decode_type_t::MITSUBISHI136));
+  ASSERT_FALSE(IRac::isProtocolSupported(decode_type_t::MITSUBISHI136));
 }

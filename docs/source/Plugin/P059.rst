@@ -19,11 +19,22 @@ GitHub: |P059_github|_
 
 Maintainer: |P059_maintainer|
 
+Used libraries: |P059_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P059_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P059_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P059_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

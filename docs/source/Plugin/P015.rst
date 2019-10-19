@@ -19,11 +19,22 @@ GitHub: |P015_github|_
 
 Maintainer: |P015_maintainer|
 
+Used libraries: |P015_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P015_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P015_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P015_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

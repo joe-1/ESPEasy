@@ -8,6 +8,7 @@
 .. |P080_shortinfo| replace:: `.`
 .. |P080_maintainer| replace:: `.`
 .. |P080_compileinfo| replace:: `.`
+.. |P080_usedlibraries| replace:: `.`
 
 .. |P081_name| replace:: :cyan:`CRON`
 .. |P081_type| replace:: :cyan:`Generic`
@@ -19,3 +20,40 @@
 .. |P081_shortinfo| replace:: `.`
 .. |P081_maintainer| replace:: `.`
 .. |P081_compileinfo| replace:: `.`
+.. |P081_usedlibraries| replace:: `.`
+
+.. |P082_name| replace:: :cyan:`GPS`
+.. |P082_type| replace:: :cyan:`Position`
+.. |P082_typename| replace:: :cyan:`Position - GPS`
+.. |P082_status| replace:: :yellow:`TESTING`
+.. |P082_github| replace:: P082_GPS.ino
+.. _P082_github: https://github.com/letscontrolit/ESPEasy/blob/mega/src/_P082_GPS.ino
+.. |P082_usedby| replace:: :ref:`P082_Neo-6M_page`, :ref:`P082_Neo-7M_page`, :ref:`P082_Neo-M8n_page`
+.. |P082_shortinfo| replace:: `Determine position and sync system time using a GPS receiver communicating via serial`
+.. |P082_maintainer| replace:: `TD-er`
+.. |P082_compileinfo| replace:: `.`
+.. |P082_usedlibraries| replace:: https://github.com/mikalhart/TinyGPSPlus/tree/v1.0.2
+
+.. |P086_name| replace:: :cyan:`Homie receiver`
+.. |P086_type| replace:: :cyan:`Generic`
+.. |P086_typename| replace:: :cyan:`Generic - Homie receiver`
+.. |P086_status| replace:: :yellow:`TESTING`
+.. |P086_github| replace:: P086_Homie.ino
+.. _P086_github: https://github.com/letscontrolit/ESPEasy/blob/mega/src/_P086_Homie.ino
+.. |P086_usedby| replace:: `.`
+.. |P086_shortinfo| replace:: `Triggers configurable events when data is received form the Homie controller (C014).`
+.. |P086_maintainer| replace:: `.`
+.. |P086_compileinfo| replace:: `.`
+.. |P086_usedlibraries| replace:: `.`
+
+.. |P088_name| replace:: :cyan:`HeatpumpIR`
+.. |P088_type| replace:: :cyan:`Communication`
+.. |P088_typename| replace:: :cyan:`Communication - HeatpumpIR`
+.. |P088_status| replace:: :yellow:`TESTING`
+.. |P088_github| replace:: P088_HeatpumpIR.ino
+.. _P088_github: https://github.com/letscontrolit/ESPEasy/blob/mega/src/_P088_HeatpumpIR.ino
+.. |P088_usedby| replace:: `.`
+.. |P088_shortinfo| replace:: `Sends air conditioner / heatpump infrared commands.`
+.. |P088_maintainer| replace:: `.`
+.. |P088_compileinfo| replace:: `.`
+.. |P088_usedlibraries| replace:: https://github.com/ToniA/arduino-heatpumpir

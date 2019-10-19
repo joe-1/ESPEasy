@@ -19,11 +19,22 @@ GitHub: |P050_github|_
 
 Maintainer: |P050_maintainer|
 
+Used libraries: |P050_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P050_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P050_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P050_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

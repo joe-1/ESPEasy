@@ -19,11 +19,22 @@ GitHub: |P080_github|_
 
 Maintainer: |P080_maintainer|
 
+Used libraries: |P080_usedlibraries|
 
 Supported hardware
 ------------------
 
 |P080_usedby|
+
+.. Commands available
+.. ^^^^^^^^^^^^^^^^^^
+
+.. .. include:: P080_commands.repl
+
+.. Events
+.. ~~~~~~
+
+.. .. include:: P080_events.repl
 
 Change log
 ----------
@@ -39,3 +50,8 @@ Change log
 
   |added|
   Initial release version.
+
+
+
+
+

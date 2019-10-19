@@ -9,14 +9,13 @@
 // based on this library: https://github.com/wemos/WEMOS_Motor_Shield_Arduino_Library
 // Plugin part written by Susanne Jaeckel + TungstenE2
 
-// N.B. this shield does only accept data transmissions in sets of 4 bytes.
-// This means a simple I2C scan may mess up the module (and all other I2C communications)
-// until a full reset of the node.
-// See: https://github.com/wemos/Motor_Shield_Firmware/issues/1#issuecomment-394475451
+//Note: see wiki for setup. motor_shield.bin needs to be flashed first!!!
+// see wiki: https://www.letscontrolit.com/wiki/index.php?title=WemosMotorshield
+
 
 #define PLUGIN_079
 #define PLUGIN_ID_079         79
-#define PLUGIN_NAME_079       "Motor - Wemos Motorshield [TESTING]"
+#define PLUGIN_NAME_079       "Motor - Wemos Motorshield"
 #define PLUGIN_VALUENAME1_079 "Wemos Motorshield"
 
 // copied from <WEMOS_Motor.h>
@@ -52,7 +51,7 @@ private:
 uint8_t _address;
 uint8_t _motor;
 bool _use_STBY_IO = false;
-uint8_t _STBY_IO;
+uint8_t _STBY_IO = 0;
 };
 
 #endif
@@ -94,8 +93,9 @@ boolean Plugin_079(byte function, struct EventStruct *event, String& string)
 	}
 
 	case PLUGIN_WEBFORM_LOAD: {
-    String i2c_addres_string = formatToHex(Settings.TaskDevicePluginConfig[event->TaskIndex][0]);
+    String i2c_addres_string = formatToHex(PCONFIG(0));
 		addFormTextBox(F("I2C Address (Hex)"), F("p079_adr"), i2c_addres_string, 4);
+    addFormNote(F("Make sure to update the Wemos Motorshield firmware, see <a href='https://www.letscontrolit.com/wiki/index.php?title=WemosMotorshield'>wiki</a>"));
 
 		success = true;
 		break;
@@ -103,14 +103,14 @@ boolean Plugin_079(byte function, struct EventStruct *event, String& string)
 
 	case PLUGIN_WEBFORM_SAVE: {
 		String i2c_address = WebServer.arg(F("p079_adr"));
-		Settings.TaskDevicePluginConfig[event->TaskIndex][0] = (int)strtol(i2c_address.c_str(), 0, 16);
+		PCONFIG(0) = (int)strtol(i2c_address.c_str(), 0, 16);
 
 		success = true;
 		break;
 	}
 
 	case PLUGIN_INIT: {
-		Plugin_079_MotorShield_address = Settings.TaskDevicePluginConfig[event->TaskIndex][0];
+		Plugin_079_MotorShield_address = PCONFIG(0);
 
 		success = true;
 		break;
